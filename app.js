@@ -1,170 +1,122 @@
 const dbName = "testlyric_db";
 let db;
-let debounceTimer;
 let currentSong = createSong();
 let versionSnapshots = [];
-const suggestionCache = new Map();
+let selectedLineIndex = -1;
+let pendingProposal = null;
 const sessionApiKeys = { openai: "", claude: "", deepseek: "" };
 
-const rhymeMap = {
-  light: ["night", "fight", "sight", "bite", "satellite"],
-  you: ["blue", "true", "through", "do", "new"],
-  emotion: ["ocean", "devotion", "explosion", "slow motion", "unspoken"]
-};
-
-const wordplayMap = {
-  light: ["spotlight", "ignite", "make light of", "light work"],
-  fall: ["free fall", "fall for", "autumn leaves", "gravity pull"],
-  game: ["play your cards", "change the rules", "score to settle"]
-};
+const rhymeMap = { light: ["night", "fight", "sight", "bite", "satellite"], you: ["blue", "true", "through", "do", "new"] };
+const wordplayMap = { light: ["spotlight", "ignite", "light work"], fall: ["free fall", "autumn leaves", "gravity pull"] };
 
 init();
-
-async function init() {
-  bindUi();
-  await openDb();
-  const saved = await loadSong();
-  if (saved) currentSong = saved;
-  hydrate();
-  runLocalAnalysis();
-}
+async function init() { bindUi(); await openDb(); const saved = await loadSong(); if (saved) currentSong = saved; hydrate(); analyzeLocal(); }
 
 function bindUi() {
-  const editor = el("editor");
-  editor.addEventListener("input", onEdit);
+  el("editor").addEventListener("input", onEdit);
+  el("editor").addEventListener("click", updateSelectedLineFromCaret);
+  el("editor").addEventListener("keyup", updateSelectedLineFromCaret);
   el("title").addEventListener("input", (e) => currentSong.title = e.target.value);
   el("saveBtn").addEventListener("click", () => saveSong("manual save"));
   el("openMenu").addEventListener("click", () => el("menu").classList.remove("hidden"));
   el("closeMenu").addEventListener("click", () => el("menu").classList.add("hidden"));
 
-  document.querySelectorAll("[data-ai]").forEach((btn) => btn.addEventListener("click", () => runManualAI(btn.dataset.ai)));
+  el("darkModeBtn").addEventListener("click", () => toggleDarkMode());
+  el("focusModeBtn").addEventListener("click", () => toggleFocusMode());
+  el("learnModeBtn").addEventListener("click", () => toggleLearnMode());
+
+  el("openaiKey").addEventListener("input", (e) => sessionApiKeys.openai = e.target.value);
+  el("claudeKey").addEventListener("input", (e) => sessionApiKeys.claude = e.target.value);
+  el("deepseekKey").addEventListener("input", (e) => sessionApiKeys.deepseek = e.target.value);
+  el("clearKeysBtn").addEventListener("click", clearKeys);
+
+  document.querySelectorAll("[data-ai]").forEach((btn) => btn.addEventListener("click", () => runAiTool(btn.dataset.ai)));
   document.querySelectorAll("[data-action]").forEach((btn) => btn.addEventListener("click", () => runAction(btn.dataset.action)));
 
-  el("darkModeToggle").addEventListener("change", (e) => setDarkMode(e.target.checked));
-  el("openaiKey").addEventListener("input", (e) => (sessionApiKeys.openai = e.target.value));
-  el("claudeKey").addEventListener("input", (e) => (sessionApiKeys.claude = e.target.value));
-  el("deepseekKey").addEventListener("input", (e) => (sessionApiKeys.deepseek = e.target.value));
-  el("clearKeysBtn").addEventListener("click", clearKeys);
+  el("replaceBtn").addEventListener("click", () => applyProposal("replace"));
+  el("insertBtn").addEventListener("click", () => applyProposal("insert"));
+  el("dismissBtn").addEventListener("click", () => applyProposal("dismiss"));
 }
 
-function createSong() {
-  return { id: crypto.randomUUID(), title: "Untitled Song", genre: "", mood: [], theme: "", sections: [], memory: {}, versions: [] };
-}
+function createSong() { return { id: crypto.randomUUID(), title: "Untitled Song", sections: [], memory: {}, versions: [] }; }
 
 function onEdit(e) {
-  const text = e.target.value;
-  currentSong.sections = detectSections(text);
-  currentSong.memory = buildSongBrain(currentSong.sections);
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(runLocalAnalysis, 500);
-  setTimeout(() => saveSong("autosave"), 2000);
+  currentSong.sections = detectSections(e.target.value);
+  currentSong.memory = { updatedAt: new Date().toISOString() };
+  analyzeLocal();
+  setTimeout(() => saveSong("autosave"), 1200);
 }
 
-function detectSections(text) {
-  const lines = text.split("\n");
-  let type = "verse";
-  const sections = [];
-  let buffer = [];
-
-  const pushSection = () => {
-    if (!buffer.length) return;
-    const id = `${type}_${sections.filter((s) => s.type === type).length + 1}`;
-    sections.push({ id, type, text: buffer.join("\n"), lines: buffer.map((line, i) => enrichLine(id, line, i)) });
-    buffer = [];
-  };
-
-  for (const raw of lines) {
-    const line = raw.trim();
-    const detected = /^(verse|chorus|pre-chorus|bridge|hook|outro)\b/i.exec(line);
-    if (detected) {
-      pushSection();
-      type = detected[1].toLowerCase().replace("-", "_");
-      continue;
-    }
-    buffer.push(raw);
-  }
-  pushSection();
-  return sections;
+function updateSelectedLineFromCaret() {
+  const t = el("editor");
+  const before = t.value.slice(0, t.selectionStart);
+  selectedLineIndex = before.split("\n").length - 1;
+  const line = getLineByIndex(selectedLineIndex);
+  el("details").textContent = `Selected line ${selectedLineIndex + 1}: ${line || "(empty)"}`;
 }
 
-function enrichLine(sectionId, text, index) {
-  const cleaned = text.trim();
-  const endingWord = cleaned.split(/\s+/).pop()?.toLowerCase().replace(/[^a-z]/g, "") || "";
-  return {
-    id: `${sectionId}_line_${index + 1}`,
-    text,
-    syllables: estimateSyllables(cleaned),
-    endingSound: endingWord.slice(-3),
-    rhymeGroup: String.fromCharCode(65 + (index % 4)),
-    keywords: cleaned.toLowerCase().split(/\W+/).filter(Boolean).slice(0, 3)
-  };
-}
+function getLineByIndex(idx) { return el("editor").value.split("\n")[idx] ?? ""; }
 
-function estimateSyllables(line) {
-  return (line.toLowerCase().match(/[aeiouy]+/g) || []).length || 1;
-}
-
-function runLocalAnalysis() {
-  const text = el("editor").value;
-  const words = text.toLowerCase().match(/[a-z']+/g) || [];
+function analyzeLocal() {
+  const words = (el("editor").value.toLowerCase().match(/[a-z']+/g) || []);
   const lastWord = words.at(-1) || "";
-  const rhyme = rhymeMap[lastWord] || guessNearRhymes(lastWord);
-  const repeats = findRepeats(words);
-  const cliches = detectCliches(text);
+  const rhymes = rhymeMap[lastWord] || [lastWord + "-ish", "night", "time"];
   const wordplay = wordplayMap[lastWord] || [];
-  renderSuggestions([...rhyme.slice(0, 3), ...wordplay.slice(0, 2)]);
-  el("details").textContent = `rhyme: ${rhyme.join(" / ")}\nnear-rhyme: ${guessNearRhymes(lastWord).join(" / ")}\nrepeats: ${repeats.join(", ") || "none"}\ncliché warnings: ${cliches.join(", ") || "none"}`;
+  el("suggestionStrip").innerHTML = [...rhymes.slice(0, 3), ...wordplay.slice(0, 2)].map((w) => `<span class='chip'>${w}</span>`).join("");
 }
 
-function guessNearRhymes(word) {
-  if (!word) return [];
-  return [word.slice(0, 1) + "ight", word.slice(0, 1) + "ime", word + "er"].filter(Boolean);
-}
-function findRepeats(words) {
-  const counts = {};
-  for (const w of words) counts[w] = (counts[w] || 0) + 1;
-  return Object.keys(counts).filter((k) => counts[k] > 2).slice(0, 5);
-}
-function detectCliches(text) {
-  return ["broken heart", "lost without you", "tears fall down"].filter((c) => text.toLowerCase().includes(c));
-}
+function runAiTool(task) {
+  if (selectedLineIndex < 0) updateSelectedLineFromCaret();
+  const originalLine = getLineByIndex(selectedLineIndex);
+  if (!originalLine && task === "improve_line") return renderDetails("Pick a line first.");
 
-function runManualAI(task) {
-  const line = getCurrentLine();
-  const key = JSON.stringify({ task, line, genre: currentSong.genre, mood: currentSong.mood });
-  if (suggestionCache.has(key)) return renderAi(suggestionCache.get(key), true);
+  const consent = confirm("Before AI request: do not change any words without asking. Continue?");
+  if (!consent) return;
 
-  const generated = {
-    improve_line: [`${line.replace(/\b(sad|bad)\b/gi, "heavy")}`, "Your ghost still sleeps in my phone"],
-    generate_chorus: ["Chorus", "I wear your echo like a chain tonight", "Say I'm alright while I hide from the light"],
-    wordplay: ["falling for you / gravity pull", "cold shoulder / winter warning"],
-    double_meanings: ["kept me in rotation (playlist / option)", "on repeat (song / behavior)"],
-    analyze_structure: [analyzeStructureText()]
-  }[task] || ["No suggestion"];
-
-  suggestionCache.set(key, generated);
-  renderAi(generated, false);
-  saveVersion(`AI tool: ${task}`);
+  const proposal = mockAi(task, originalLine);
+  pendingProposal = { task, lineIndex: selectedLineIndex, original: originalLine, changed: proposal };
+  showReview(pendingProposal);
 }
 
-function analyzeStructureText() {
-  const counts = currentSong.sections.reduce((a, s) => ((a[s.type] = (a[s.type] || 0) + 1), a), {});
-  return `Structure: ${Object.entries(counts)
-    .map(([k, v]) => `${k} x${v}`)
-    .join(", ") || "verse x1"}. Consider repeating the hook phrase in chorus.`;
+function mockAi(task, line) {
+  if (task === "improve_line") return line.replace(/\b(sad|bad|lonely)\b/gi, "heavy");
+  if (task === "wordplay") return `${line} / (double image: orbit & gravity)`;
+  if (task === "double_meanings") return `${line} (surface + hidden meaning)`;
+  if (task === "generate_chorus") return "I say I'm good while I ghost in your light";
+  if (task === "analyze_structure") return "Structure idea: verse -> pre-chorus -> chorus repeat with one line changed.";
+  return line;
 }
 
+function showReview(p) {
+  el("aiReview").classList.remove("hidden");
+  el("reviewPrompt").textContent = `Task: ${p.task}. Original is preserved unless you accept replace/insert.`;
+  el("diffView").innerHTML = renderWordDiff(p.original, p.changed);
+}
+
+function renderWordDiff(oldLine, newLine) {
+  const oldWords = oldLine.split(/\s+/);
+  const newWords = newLine.split(/\s+/);
+  return `Old: <span class="old">${oldWords.join(" ")}</span>\nNew: <span class="new">${newWords.join(" ")}</span>`;
+}
+
+function applyProposal(mode) {
+  if (!pendingProposal) return;
+  if (mode === "dismiss") { renderDetails("Kept original line only."); hideReview(); return; }
+
+  const lines = el("editor").value.split("\n");
+  if (mode === "replace") lines[pendingProposal.lineIndex] = pendingProposal.changed;
+  if (mode === "insert") lines.splice(pendingProposal.lineIndex + 1, 0, pendingProposal.changed);
+  el("editor").value = lines.join("\n");
+  onEdit({ target: el("editor") });
+  saveVersion(`AI ${mode}: ${pendingProposal.task}`);
+  hideReview();
+}
+
+function hideReview() { pendingProposal = null; el("aiReview").classList.add("hidden"); }
 function runAction(action) {
-  if (action === "show-first-api-call") return renderAi([deepseekQuickstart()], true);
-  if (action === "show-structure") return renderAi([analyzeStructureText()], true);
-  if (action === "show-versions") return renderAi(versionSnapshots.slice(-8).map((v) => `${v.at}: ${v.reason}`), true);
-  if (action === "export") {
-    const blob = new Blob([el("editor").value], { type: "text/plain" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${currentSong.title || "song"}.txt`;
-    a.click();
-  }
+  if (action === "show-structure") return renderDetails(analyzeStructure());
+  if (action === "show-versions") return renderDetails(versionSnapshots.slice(-10).map((v) => `${v.at} ${v.reason}`).join("\n") || "No versions yet.");
+  if (action === "export") return exportLyrics();
   if (action === "import") {
     const txt = prompt("Paste lyrics");
     if (!txt) return;
@@ -172,100 +124,24 @@ function runAction(action) {
     onEdit({ target: el("editor") });
   }
 }
-
-function deepseekQuickstart() {
-  return [
-    "DeepSeek quickstart",
-    "OpenAI-compatible base URL: https://api.deepseek.com",
-    "Anthropic-compatible base URL: https://api.deepseek.com/anthropic",
-    "Recommended models: deepseek-v4-flash or deepseek-v4-pro",
-    "Legacy deepseek-chat/deepseek-reasoner are deprecated on 2026-07-24.",
-    "",
-    "OpenAI SDK-style:",
-    "const client = new OpenAI({ apiKey: DEEPSEEK_KEY, baseURL: 'https://api.deepseek.com' });",
-    "await client.chat.completions.create({ model: 'deepseek-v4-flash', messages: [{ role: 'user', content: 'Write a chorus about late-night regret.' }] });"
-  ].join("\n");
-}
-
-function clearKeys() {
-  sessionApiKeys.openai = "";
-  sessionApiKeys.claude = "";
-  sessionApiKeys.deepseek = "";
-  el("openaiKey").value = "";
-  el("claudeKey").value = "";
-  el("deepseekKey").value = "";
-  renderAi(["API keys cleared from memory for this tab."], true);
-}
-
-function setDarkMode(enabled) {
-  document.body.classList.toggle("dark", enabled);
-}
-
-function buildSongBrain(sections) {
-  const all = sections.flatMap((s) => s.lines.map((l) => l.text));
-  return {
-    oneSentenceSummary: `${sections.length} sections, ${all.length} lines`,
-    recurringImages: ["night", "light", "ghost", "rain"].filter((w) => all.join(" ").toLowerCase().includes(w)),
-    rhymePalette: sections.flatMap((s) => s.lines.map((l) => l.endingSound)).filter(Boolean).slice(0, 15),
-    sectionSummaries: Object.fromEntries(sections.map((s) => [s.id, `${s.lines.length} lines in ${s.type}`]))
-  };
-}
+function analyzeStructure() { return `Detected sections: ${detectSections(el("editor").value).map((s) => s.type).join(", ") || "verse"}`; }
+function detectSections(text) { return text.split(/\n{2,}/).map((chunk, i) => ({ id: `section_${i+1}`, type: /chorus/i.test(chunk) ? "chorus" : "verse", text: chunk })); }
 
 async function saveSong(reason) {
-  currentSong.genre = el("genreInput").value;
-  currentSong.mood = el("moodInput").value.split(",").map((s) => s.trim()).filter(Boolean);
-  currentSong.theme = el("themeInput").value;
   saveVersion(reason);
   const tx = db.transaction("songs", "readwrite");
   tx.objectStore("songs").put(currentSong);
 }
+function saveVersion(reason) { const v = { at: new Date().toISOString(), reason, text: el("editor").value }; versionSnapshots.push(v); currentSong.versions = versionSnapshots; }
 
-function saveVersion(reason) {
-  const v = { at: new Date().toISOString(), reason, text: el("editor").value };
-  versionSnapshots.push(v);
-  currentSong.versions = versionSnapshots;
-}
+function toggleDarkMode() { const enabled = !document.body.classList.contains("dark"); document.body.classList.toggle("dark", enabled); el("darkModeBtn").setAttribute("aria-pressed", String(enabled)); }
+function toggleFocusMode() { const enabled = !document.body.classList.contains("focus"); document.body.classList.toggle("focus", enabled); el("focusModeBtn").setAttribute("aria-pressed", String(enabled)); }
+function toggleLearnMode() { const tips = el("tips"); const show = tips.style.display !== "none"; tips.style.display = show ? "none" : "block"; el("learnModeBtn").setAttribute("aria-pressed", String(!show)); }
+function clearKeys() { sessionApiKeys.openai = ""; sessionApiKeys.claude = ""; sessionApiKeys.deepseek = ""; el("openaiKey").value = ""; el("claudeKey").value = ""; el("deepseekKey").value = ""; renderDetails("API keys cleared. They were only held in tab memory."); }
 
-function renderSuggestions(items) {
-  el("suggestionStrip").innerHTML = items.slice(0, 5).map((i) => `<span class='chip'>${i}</span>`).join("");
-}
-function renderAi(lines, cached) {
-  el("details").textContent = `${cached ? "[cached]\n" : ""}${lines.join("\n")}`;
-}
-function getCurrentLine() {
-  const lines = el("editor").value.split("\n");
-  return lines.at(-1) || "";
-}
-function el(id) {
-  return document.getElementById(id);
-}
-
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore("songs", { keyPath: "id" });
-    req.onsuccess = () => {
-      db = req.result;
-      resolve();
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function loadSong() {
-  return new Promise((resolve) => {
-    if (!db) return resolve(null);
-    const tx = db.transaction("songs", "readonly");
-    const req = tx.objectStore("songs").getAll();
-    req.onsuccess = () => resolve(req.result?.[0] || null);
-    req.onerror = () => resolve(null);
-  });
-}
-
-function hydrate() {
-  setDarkMode(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
-  el("darkModeToggle").checked = document.body.classList.contains("dark");
-  el("title").value = currentSong.title;
-  el("editor").value = currentSong.sections?.map((s) => `${s.type}\n${s.text}`).join("\n\n") || "";
-  versionSnapshots = currentSong.versions || [];
-}
+function renderDetails(msg) { el("details").textContent = msg; }
+function openDb() { return new Promise((resolve, reject) => { const req = indexedDB.open(dbName, 1); req.onupgradeneeded = () => req.result.createObjectStore("songs", { keyPath: "id" }); req.onsuccess = () => { db = req.result; resolve(); }; req.onerror = () => reject(req.error); }); }
+function loadSong() { return new Promise((resolve) => { const tx = db.transaction("songs", "readonly"); const req = tx.objectStore("songs").getAll(); req.onsuccess = () => resolve(req.result?.[0] || null); req.onerror = () => resolve(null); }); }
+function hydrate() { el("title").value = currentSong.title; el("editor").value = currentSong.sections?.map((s) => s.text).join("\n\n") || ""; versionSnapshots = currentSong.versions || []; updateSelectedLineFromCaret(); }
+function exportLyrics() { const blob = new Blob([el("editor").value], { type: "text/plain" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${currentSong.title || "song"}.txt`; a.click(); }
+function el(id) { return document.getElementById(id); }
