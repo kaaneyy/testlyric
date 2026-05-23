@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TestLyric</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <aside id="menu" class="menu hidden" aria-label="Main menu">
+      <div class="menu-header">
+        <h2>☰ Menu</h2>
+        <button id="closeMenu">Close</button>
+      </div>
+
+      <section>
+        <h3>Quick settings</h3>
+        <div class="pill-row">
+          <button class="pill" id="darkModeBtn" aria-pressed="false">🌙 Dark mode</button>
+          <button class="pill" id="focusModeBtn" aria-pressed="false">🧘 Focus mode</button>
+          <button class="pill" id="learnModeBtn" aria-pressed="true">💡 Learn mode</button>
+        </div>
+      </section>
+
+      <section>
+        <h3>Song</h3>
+        <button data-action="show-structure">Structure map</button>
+        <button data-action="show-versions">Versions</button>
+        <button data-action="export">Export lyrics</button>
+        <button data-action="import">Import text</button>
+      </section>
+
+      <section>
+        <h3>Writing tools</h3>
+        <button data-ai="improve_line">Improve selected line</button>
+        <button data-ai="wordplay">Find wordplay</button>
+        <button data-ai="double_meanings">Find double meanings</button>
+        <button data-ai="generate_chorus">Generate chorus</button>
+        <button data-ai="analyze_structure">Analyze structure</button>
+      </section>
+
+      <section>
+        <h3>Provider API keys</h3>
+        <label>OpenAI key <input id="openaiKey" type="password" placeholder="sk-..." autocomplete="off" /></label>
+        <label>Claude key <input id="claudeKey" type="password" placeholder="sk-ant-..." autocomplete="off" /></label>
+        <label>DeepSeek key <input id="deepseekKey" type="password" placeholder="ds-..." autocomplete="off" /></label>
+        <p class="privacy-note">Keys are session-memory only (this tab) and are never saved to disk by this app.</p>
+        <button id="clearKeysBtn">Clear keys</button>
+      </section>
+    </aside>
+
+    <main class="app" id="appRoot">
+      <header>
+        <button id="openMenu">☰</button>
+        <input id="title" value="Untitled Song" aria-label="Song title" />
+        <button id="saveBtn">Save</button>
+      </header>
+
+      <section class="tips" id="tips">
+        <strong>How to use:</strong> highlight a line, click a tool, review differences, then choose replace/insert/keep.
+      </section>
+
+      <textarea id="editor" placeholder="Write lyrics here..." aria-label="Lyrics editor"></textarea>
+
+      <div class="divider"></div>
+
+      <section class="suggestions" aria-live="polite">
+        <h4>Suggestions</h4>
+        <div id="suggestionStrip" class="strip"></div>
+        <div id="details" class="details"></div>
+      </section>
+
+      <section id="aiReview" class="review hidden" aria-live="polite">
+        <h4>AI Review (you decide)</h4>
+        <p id="reviewPrompt" class="privacy-note"></p>
+        <div id="diffView" class="diff"></div>
+        <div class="review-actions">
+          <button id="replaceBtn">Replace selected line</button>
+          <button id="insertBtn">Insert below + keep original</button>
+          <button id="dismissBtn">Keep original only</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
