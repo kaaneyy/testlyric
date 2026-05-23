@@ -4,6 +4,7 @@ let debounceTimer;
 let currentSong = createSong();
 let versionSnapshots = [];
 const suggestionCache = new Map();
+const sessionApiKeys = { openai: "", claude: "", deepseek: "" };
 
 const rhymeMap = {
   light: ["night", "fight", "sight", "bite", "satellite"],
@@ -38,6 +39,12 @@ function bindUi() {
 
   document.querySelectorAll("[data-ai]").forEach((btn) => btn.addEventListener("click", () => runManualAI(btn.dataset.ai)));
   document.querySelectorAll("[data-action]").forEach((btn) => btn.addEventListener("click", () => runAction(btn.dataset.action)));
+
+  el("darkModeToggle").addEventListener("change", (e) => setDarkMode(e.target.checked));
+  el("openaiKey").addEventListener("input", (e) => (sessionApiKeys.openai = e.target.value));
+  el("claudeKey").addEventListener("input", (e) => (sessionApiKeys.claude = e.target.value));
+  el("deepseekKey").addEventListener("input", (e) => (sessionApiKeys.deepseek = e.target.value));
+  el("clearKeysBtn").addEventListener("click", clearKeys);
 }
 
 function createSong() {
@@ -69,7 +76,11 @@ function detectSections(text) {
   for (const raw of lines) {
     const line = raw.trim();
     const detected = /^(verse|chorus|pre-chorus|bridge|hook|outro)\b/i.exec(line);
-    if (detected) { pushSection(); type = detected[1].toLowerCase().replace("-", "_"); continue; }
+    if (detected) {
+      pushSection();
+      type = detected[1].toLowerCase().replace("-", "_");
+      continue;
+    }
     buffer.push(raw);
   }
   pushSection();
@@ -89,7 +100,9 @@ function enrichLine(sectionId, text, index) {
   };
 }
 
-function estimateSyllables(line) { return (line.toLowerCase().match(/[aeiouy]+/g) || []).length || 1; }
+function estimateSyllables(line) {
+  return (line.toLowerCase().match(/[aeiouy]+/g) || []).length || 1;
+}
 
 function runLocalAnalysis() {
   const text = el("editor").value;
@@ -99,13 +112,22 @@ function runLocalAnalysis() {
   const repeats = findRepeats(words);
   const cliches = detectCliches(text);
   const wordplay = wordplayMap[lastWord] || [];
-  renderSuggestions([ ...rhyme.slice(0, 3), ...wordplay.slice(0, 2) ]);
+  renderSuggestions([...rhyme.slice(0, 3), ...wordplay.slice(0, 2)]);
   el("details").textContent = `rhyme: ${rhyme.join(" / ")}\nnear-rhyme: ${guessNearRhymes(lastWord).join(" / ")}\nrepeats: ${repeats.join(", ") || "none"}\ncliché warnings: ${cliches.join(", ") || "none"}`;
 }
 
-function guessNearRhymes(word) { if (!word) return []; return [word.slice(0, 1) + "ight", word.slice(0, 1) + "ime", word + "er"].filter(Boolean); }
-function findRepeats(words) { const counts = {}; for (const w of words) counts[w]=(counts[w]||0)+1; return Object.keys(counts).filter(k=>counts[k]>2).slice(0,5); }
-function detectCliches(text) { return ["broken heart","lost without you","tears fall down"].filter(c=>text.toLowerCase().includes(c)); }
+function guessNearRhymes(word) {
+  if (!word) return [];
+  return [word.slice(0, 1) + "ight", word.slice(0, 1) + "ime", word + "er"].filter(Boolean);
+}
+function findRepeats(words) {
+  const counts = {};
+  for (const w of words) counts[w] = (counts[w] || 0) + 1;
+  return Object.keys(counts).filter((k) => counts[k] > 2).slice(0, 5);
+}
+function detectCliches(text) {
+  return ["broken heart", "lost without you", "tears fall down"].filter((c) => text.toLowerCase().includes(c));
+}
 
 function runManualAI(task) {
   const line = getCurrentLine();
@@ -127,39 +149,75 @@ function runManualAI(task) {
 
 function analyzeStructureText() {
   const counts = currentSong.sections.reduce((a, s) => ((a[s.type] = (a[s.type] || 0) + 1), a), {});
-  return `Structure: ${Object.entries(counts).map(([k,v]) => `${k} x${v}`).join(", ") || "verse x1"}. Consider repeating the hook phrase in chorus.`;
+  return `Structure: ${Object.entries(counts)
+    .map(([k, v]) => `${k} x${v}`)
+    .join(", ") || "verse x1"}. Consider repeating the hook phrase in chorus.`;
 }
 
 function runAction(action) {
+  if (action === "show-first-api-call") return renderAi([deepseekQuickstart()], true);
   if (action === "show-structure") return renderAi([analyzeStructureText()], true);
-  if (action === "show-versions") return renderAi(versionSnapshots.slice(-8).map(v => `${v.at}: ${v.reason}`), true);
+  if (action === "show-versions") return renderAi(versionSnapshots.slice(-8).map((v) => `${v.at}: ${v.reason}`), true);
   if (action === "export") {
     const blob = new Blob([el("editor").value], { type: "text/plain" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${currentSong.title || "song"}.txt`; a.click();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${currentSong.title || "song"}.txt`;
+    a.click();
   }
   if (action === "import") {
-    const txt = prompt("Paste lyrics"); if (!txt) return; el("editor").value = txt; onEdit({target: el("editor")});
+    const txt = prompt("Paste lyrics");
+    if (!txt) return;
+    el("editor").value = txt;
+    onEdit({ target: el("editor") });
   }
 }
 
+function deepseekQuickstart() {
+  return [
+    "DeepSeek quickstart",
+    "OpenAI-compatible base URL: https://api.deepseek.com",
+    "Anthropic-compatible base URL: https://api.deepseek.com/anthropic",
+    "Recommended models: deepseek-v4-flash or deepseek-v4-pro",
+    "Legacy deepseek-chat/deepseek-reasoner are deprecated on 2026-07-24.",
+    "",
+    "OpenAI SDK-style:",
+    "const client = new OpenAI({ apiKey: DEEPSEEK_KEY, baseURL: 'https://api.deepseek.com' });",
+    "await client.chat.completions.create({ model: 'deepseek-v4-flash', messages: [{ role: 'user', content: 'Write a chorus about late-night regret.' }] });"
+  ].join("\n");
+}
+
+function clearKeys() {
+  sessionApiKeys.openai = "";
+  sessionApiKeys.claude = "";
+  sessionApiKeys.deepseek = "";
+  el("openaiKey").value = "";
+  el("claudeKey").value = "";
+  el("deepseekKey").value = "";
+  renderAi(["API keys cleared from memory for this tab."], true);
+}
+
+function setDarkMode(enabled) {
+  document.body.classList.toggle("dark", enabled);
+}
+
 function buildSongBrain(sections) {
-  const all = sections.flatMap(s => s.lines.map(l => l.text));
+  const all = sections.flatMap((s) => s.lines.map((l) => l.text));
   return {
     oneSentenceSummary: `${sections.length} sections, ${all.length} lines`,
     recurringImages: ["night", "light", "ghost", "rain"].filter((w) => all.join(" ").toLowerCase().includes(w)),
-    rhymePalette: sections.flatMap(s => s.lines.map(l => l.endingSound)).filter(Boolean).slice(0, 15),
-    sectionSummaries: Object.fromEntries(sections.map(s => [s.id, `${s.lines.length} lines in ${s.type}`]))
+    rhymePalette: sections.flatMap((s) => s.lines.map((l) => l.endingSound)).filter(Boolean).slice(0, 15),
+    sectionSummaries: Object.fromEntries(sections.map((s) => [s.id, `${s.lines.length} lines in ${s.type}`]))
   };
 }
 
 async function saveSong(reason) {
   currentSong.genre = el("genreInput").value;
-  currentSong.mood = el("moodInput").value.split(",").map(s => s.trim()).filter(Boolean);
+  currentSong.mood = el("moodInput").value.split(",").map((s) => s.trim()).filter(Boolean);
   currentSong.theme = el("themeInput").value;
   saveVersion(reason);
   const tx = db.transaction("songs", "readwrite");
   tx.objectStore("songs").put(currentSong);
-  await tx.complete;
 }
 
 function saveVersion(reason) {
@@ -168,16 +226,28 @@ function saveVersion(reason) {
   currentSong.versions = versionSnapshots;
 }
 
-function renderSuggestions(items) { el("suggestionStrip").innerHTML = items.slice(0, 5).map((i) => `<span class='chip'>${i}</span>`).join(""); }
-function renderAi(lines, cached) { el("details").textContent = `${cached ? "[cached]\n" : ""}${lines.join("\n")}`; }
-function getCurrentLine() { const lines = el("editor").value.split("\n"); return lines.at(-1) || ""; }
-function el(id) { return document.getElementById(id); }
+function renderSuggestions(items) {
+  el("suggestionStrip").innerHTML = items.slice(0, 5).map((i) => `<span class='chip'>${i}</span>`).join("");
+}
+function renderAi(lines, cached) {
+  el("details").textContent = `${cached ? "[cached]\n" : ""}${lines.join("\n")}`;
+}
+function getCurrentLine() {
+  const lines = el("editor").value.split("\n");
+  return lines.at(-1) || "";
+}
+function el(id) {
+  return document.getElementById(id);
+}
 
 function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(dbName, 1);
     req.onupgradeneeded = () => req.result.createObjectStore("songs", { keyPath: "id" });
-    req.onsuccess = () => { db = req.result; resolve(); };
+    req.onsuccess = () => {
+      db = req.result;
+      resolve();
+    };
     req.onerror = () => reject(req.error);
   });
 }
@@ -193,6 +263,8 @@ function loadSong() {
 }
 
 function hydrate() {
+  setDarkMode(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  el("darkModeToggle").checked = document.body.classList.contains("dark");
   el("title").value = currentSong.title;
   el("editor").value = currentSong.sections?.map((s) => `${s.type}\n${s.text}`).join("\n\n") || "";
   versionSnapshots = currentSong.versions || [];
