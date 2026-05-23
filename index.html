@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TestLyric</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <aside id="menu" class="menu hidden">
+      <div class="menu-header">
+        <h2>☰ Menu</h2>
+        <button id="closeMenu">Close</button>
+      </div>
+      <section>
+        <h3>Song</h3>
+        <button data-action="show-structure">Structure map</button>
+        <button data-action="show-versions">Versions</button>
+        <button data-action="export">Export lyrics</button>
+        <button data-action="import">Import text</button>
+      </section>
+      <section>
+        <h3>Writing Tools</h3>
+        <button data-ai="improve_line">Improve this line</button>
+        <button data-ai="wordplay">Find wordplay</button>
+        <button data-ai="double_meanings">Find double meanings</button>
+      </section>
+      <section>
+        <h3>Song Structure</h3>
+        <button data-ai="generate_chorus">Generate chorus</button>
+        <button data-ai="analyze_structure">Analyze structure</button>
+      </section>
+      <section>
+        <h3>AI Settings</h3>
+        <label><input type="radio" name="aiMode" value="local" /> Local only</label>
+        <label><input type="radio" name="aiMode" value="smart" checked /> Smart assist</label>
+        <label><input type="radio" name="aiMode" value="manual" /> Manual AI only</label>
+      </section>
+      <section>
+        <h3>Theme</h3>
+        <label><input id="darkModeToggle" type="checkbox" /> Dark mode</label>
+      </section>
+      <section>
+        <h3>Provider API Keys</h3>
+        <label>OpenAI key
+          <input id="openaiKey" type="password" placeholder="sk-..." autocomplete="off" />
+        </label>
+        <label>Claude key
+          <input id="claudeKey" type="password" placeholder="sk-ant-..." autocomplete="off" />
+        </label>
+        <label>DeepSeek key
+          <input id="deepseekKey" type="password" placeholder="ds-..." autocomplete="off" />
+        </label>
+        <p class="privacy-note">Keys stay in memory for this tab only and are never saved to IndexedDB/localStorage or sent anywhere unless you explicitly use them in a future API request.</p>
+        <button id="clearKeysBtn">Clear keys now</button>
+        <button data-action="show-first-api-call">DeepSeek first API call</button>
+      </section>
+      <section>
+        <h3>Advanced</h3>
+        <label>Genre <input id="genreInput" placeholder="pop / rap / r&b" /></label>
+        <label>Mood <input id="moodInput" placeholder="sad, clever" /></label>
+        <label>Theme <input id="themeInput" placeholder="missing someone but unfazed" /></label>
+      </section>
+    </aside>
+
+    <main class="app">
+      <header>
+        <button id="openMenu">☰</button>
+        <input id="title" value="Untitled Song" />
+        <button id="saveBtn">Save</button>
+      </header>
+
+      <textarea id="editor" placeholder="Write lyrics here..."></textarea>
+
+      <div class="divider"></div>
+
+      <section class="suggestions">
+        <h4>Suggestions</h4>
+        <div id="suggestionStrip" class="strip"></div>
+        <div id="details" class="details"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
