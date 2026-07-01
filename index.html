@@ -7,141 +7,194 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <aside id="menu" class="menu hidden" aria-label="Songwriting tools">
-      <div class="menu-header">
-        <div>
-          <p class="eyebrow">TestLyric</p>
-          <h2>Writing Studio</h2>
-        </div>
-        <button id="closeMenu" class="icon-btn" aria-label="Close menu">×</button>
+    <aside id="menu" class="menu hidden" role="dialog" aria-modal="true" aria-label="Settings">
+      <div class="settings-popover">
+        <header class="popup-head">
+          <div>
+            <p class="eyebrow">TestLyric</p>
+            <h2>Settings</h2>
+          </div>
+          <button id="closeMenu" class="icon-btn" aria-label="Close settings">x</button>
+        </header>
+
+        <section class="settings-grid">
+          <div class="settings-card">
+            <h3>Modes</h3>
+            <div class="pill-row">
+              <button class="pill" id="darkModeBtn" aria-pressed="false">Dark</button>
+              <button class="pill" id="focusModeBtn" aria-pressed="false">Focus</button>
+              <button class="pill" id="learnModeBtn" aria-pressed="false">Hints</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>AI provider</h3>
+            <label>Provider
+              <select id="providerSelect">
+                <option value="local">Local mock / no key</option>
+                <option value="openai">OpenAI</option>
+                <option value="claude">Claude</option>
+                <option value="deepseek">DeepSeek</option>
+              </select>
+            </label>
+            <label>Model <input id="modelInput" value="gpt-4o-mini" autocomplete="off" /></label>
+          </div>
+
+          <div class="settings-card">
+            <h3>Session keys</h3>
+            <label>OpenAI <input id="openaiKey" type="password" placeholder="sk-..." autocomplete="off" /></label>
+            <label>Claude <input id="claudeKey" type="password" placeholder="sk-ant-..." autocomplete="off" /></label>
+            <label>DeepSeek <input id="deepseekKey" type="password" placeholder="ds-..." autocomplete="off" /></label>
+            <button id="clearKeysBtn" class="pill">Clear keys</button>
+          </div>
+
+          <div class="settings-card">
+            <h3>Song notes</h3>
+            <label>Genre <input id="genreInput" placeholder="pop rap, country, r&amp;b" /></label>
+            <label>Mood <input id="moodInput" placeholder="melancholic, clever" /></label>
+            <label>Theme <input id="themeInput" placeholder="pretending to be fine" /></label>
+          </div>
+        </section>
       </div>
-
-      <section class="menu-card">
-        <h3>Modes</h3>
-        <div class="pill-row">
-          <button class="pill" id="darkModeBtn" aria-pressed="false">🌙 Dark</button>
-          <button class="pill" id="focusModeBtn" aria-pressed="false">Focus</button>
-          <button class="pill" id="learnModeBtn" aria-pressed="true">Learn</button>
-        </div>
-      </section>
-
-      <section class="menu-card">
-        <h3>AI provider</h3>
-        <label>Provider
-          <select id="providerSelect">
-            <option value="local">Local mock / no key</option>
-            <option value="openai">OpenAI</option>
-            <option value="claude">Claude</option>
-            <option value="deepseek">DeepSeek</option>
-          </select>
-        </label>
-        <label>Model <input id="modelInput" value="gpt-4o-mini" autocomplete="off" /></label>
-        <label>OpenAI key <input id="openaiKey" type="password" placeholder="sk-..." autocomplete="off" /></label>
-        <label>Claude key <input id="claudeKey" type="password" placeholder="sk-ant-..." autocomplete="off" /></label>
-        <label>DeepSeek key <input id="deepseekKey" type="password" placeholder="ds-..." autocomplete="off" /></label>
-        <p class="privacy-note">Keys stay only in this tab’s memory. TestLyric never saves keys to IndexedDB, localStorage, or exports.</p>
-        <button id="clearKeysBtn">Clear keys from memory</button>
-      </section>
-
-      <section class="menu-card">
-        <h3>Song controls</h3>
-        <button data-action="show-structure">Structure map</button>
-        <button data-ai="analyze_structure">AI structure review</button>
-        <button data-ai="full_review">AI full-song review</button>
-        <button data-ai="initial_audit">Auto song analysis</button>
-        <button data-action="show-memory">Song memory</button>
-        <button data-action="show-versions">Versions</button>
-        <button data-action="restore-version">Restore latest version</button>
-        <button data-action="export">Export .txt</button>
-        <button data-action="import">Import lyrics</button>
-      </section>
-
-      <section class="menu-card">
-        <h3>Song settings</h3>
-        <label>Genre <input id="genreInput" placeholder="pop rap, country, r&b" /></label>
-        <label>Mood <input id="moodInput" placeholder="melancholic, clever" /></label>
-        <label>Theme <input id="themeInput" placeholder="pretending to be fine" /></label>
-      </section>
     </aside>
 
-    <main class="app">
-      <header class="topbar">
-        <button id="openMenu" class="icon-btn" aria-label="Open menu">☰</button>
-        <input id="title" value="Untitled Song" aria-label="Song title" />
-        <span id="aiStatus" class="ai-status hidden"><span class="spinner"></span> Waiting for AI…</span>
-        <span id="saveState" class="save-state">Saved locally</span>
-        <button id="saveBtn">Save</button>
-      </header>
+    <main class="app" aria-label="TestLyric Studio">
+      <section class="section lyrics-section" aria-label="Lyrics">
+        <header class="section-head title-head">
+          <div>
+            <p class="eyebrow">Lyrics</p>
+            <input id="title" value="Untitled Song" aria-label="Song title" />
+          </div>
+          <span id="saveState" class="save-state">Saved locally</span>
+        </header>
 
-      <section id="tips" class="tips">
-        <strong>Start fast:</strong> write lyrics, click any line, then use local tools or AI tools. AI never edits your lyric directly; every change goes through the review panel.
+        <textarea id="editor" spellcheck="true" placeholder="Verse 1&#10;I kept your shadow in the hallway light&#10;&#10;Chorus&#10;I say I'm fine but I still look twice..." aria-label="Lyrics editor"></textarea>
       </section>
 
-      <section class="workspace">
-        <div class="editor-shell">
-          <div class="editor-toolbar" aria-label="Writing tools">
-            <button data-local="rhymes">Rhymes</button>
-            <button data-local="syllables">Syllables</button>
-            <button data-local="cliches">Clichés</button>
-            <button data-local="structure">Structure</button>
-            <button data-ai="improve_line">Improve selected</button>
-            <button data-ai="next_lines">Next lines</button>
-            <button data-ai="wordplay">Wordplay</button>
-            <button data-ai="double_meanings">Double meanings</button>
-            <button data-ai="generate_chorus">Generate chorus</button>
-            <button data-ai="initial_audit">Auto map song</button>
+      <section class="section suggestion-section" aria-live="polite" aria-label="AI suggestions">
+        <header class="section-head">
+          <div>
+            <p class="eyebrow">AI suggestions</p>
+            <h2>Version</h2>
           </div>
-          <textarea id="editor" spellcheck="true" placeholder="Verse 1&#10;I kept your shadow in the hallway light&#10;&#10;Chorus&#10;I say I'm fine but I still look twice..." aria-label="Lyrics editor"></textarea>
+          <span id="aiStatus" class="ai-status hidden"><span class="spinner"></span> Thinking</span>
+        </header>
+
+        <div class="line-card">
+          <p class="mini-label">Selected line</p>
+          <p id="selectedLine" class="selected-line">Click a line to start.</p>
+          <div id="lineStats" class="stats"></div>
         </div>
 
-        <aside class="inspector" aria-live="polite">
-          <div class="panel">
-            <p class="eyebrow">Selected line</p>
-            <p id="selectedLine" class="selected-line">Click a line to start.</p>
-            <div id="lineStats" class="stats"></div>
-          </div>
-          <div class="panel">
-            <p class="eyebrow">Suggestions</p>
-            <div id="suggestionStrip" class="strip"></div>
-            <div id="details" class="details"></div>
-          </div>
-        </aside>
-      </section>
+        <div id="suggestionStrip" class="strip"></div>
+        <div id="details" class="details hidden"></div>
 
-      <section id="aiReview" class="review hidden" aria-live="polite">
-        <div class="review-heading">
-          <div>
-            <p class="eyebrow">AI Review</p>
-            <h3>Approve every word before it changes</h3>
+        <section id="aiReview" class="review hidden" aria-label="AI review">
+          <div class="review-heading">
+            <div>
+              <p class="mini-label">Proposal</p>
+              <p id="reviewPrompt" class="review-prompt"></p>
+            </div>
+            <button id="dismissBtn" class="icon-btn" aria-label="Dismiss suggestion">x</button>
           </div>
-          <button id="dismissBtn" class="icon-btn" aria-label="Dismiss suggestion">×</button>
-        </div>
-        <p id="reviewPrompt" class="privacy-note"></p>
-        <div class="review-grid">
-          <div>
-            <h4>Lyric decision</h4>
-            <div id="diffView" class="diff"></div>
-          </div>
+
+          <div id="diffView" class="diff"></div>
+
           <aside class="explanation-card">
-            <h4>Why this helps</h4>
-            <div id="explanationView" class="details"></div>
+            <p class="mini-label">Why</p>
+            <div id="explanationView" class="details-copy"></div>
             <div id="actionView" class="action-list"></div>
           </aside>
-        </div>
-        <div class="review-actions">
-          <button id="replaceBtn">Replace selection</button>
-          <button id="insertBtn">Insert below + keep original</button>
-          <button id="copyBtn">Copy suggestion</button>
-          <button id="keepBtn">Keep original</button>
+
+          <div class="review-actions">
+            <button id="replaceBtn">Replace</button>
+            <button id="insertBtn">Insert</button>
+            <button id="copyBtn">Copy</button>
+            <button id="keepBtn">Keep</button>
+          </div>
+        </section>
+
+        <div id="emptyReview" class="empty-review">
+          <p class="mini-label">Ready</p>
+          <h3>AI versions appear here.</h3>
         </div>
       </section>
+
+      <aside class="section action-section" aria-label="Actions">
+        <header class="control-head">
+          <div>
+            <p class="eyebrow">Controls</p>
+            <h2>Tools</h2>
+          </div>
+          <div class="top-buttons">
+            <button id="openMenu" class="pill">Settings</button>
+            <button id="saveBtn" class="pill">Save</button>
+          </div>
+        </header>
+
+        <div class="button-group">
+          <p class="mini-label">Local</p>
+          <div class="button-grid">
+            <button data-local="rhymes">Rhymes</button>
+            <button data-local="syllables">Syllables</button>
+            <button data-local="cliches">Cliches</button>
+            <button data-local="structure">Map</button>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <p class="mini-label">AI</p>
+          <div class="button-grid">
+            <button data-ai="improve_line">Improve</button>
+            <button data-ai="next_lines">Next lines</button>
+            <button data-ai="wordplay">Wordplay</button>
+            <button data-ai="double_meanings">Meanings</button>
+            <button data-ai="generate_chorus">Chorus</button>
+            <button data-ai="initial_audit">Audit</button>
+            <button data-ai="full_review">Review</button>
+            <button data-ai="analyze_structure">Structure</button>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <p class="mini-label">Song</p>
+          <div class="button-grid">
+            <button data-action="show-structure">Structure</button>
+            <button data-action="show-memory">Memory</button>
+            <button data-action="show-versions">Versions</button>
+            <button data-action="restore-version">Restore</button>
+            <button data-action="export">Export</button>
+            <button data-action="import">Import</button>
+          </div>
+        </div>
+      </aside>
+
+      <section id="tips" class="tips" hidden>
+        Click a line, choose a tool, then approve any AI wording before applying it.
+      </section>
     </main>
+
+    <div id="detailsModal" class="details-modal hidden" role="dialog" aria-modal="true" aria-label="Details">
+      <div class="details-popover">
+        <header class="popup-head">
+          <div>
+            <p class="eyebrow">Details</p>
+            <h2>Notes</h2>
+          </div>
+          <button id="closeDetails" class="icon-btn" aria-label="Close details">x</button>
+        </header>
+        <pre id="detailsPopupText"></pre>
+        <div class="popup-actions">
+          <button id="copyDetailsBtn" class="pill">Copy</button>
+        </div>
+      </div>
+    </div>
 
     <div id="aiOverlay" class="ai-overlay hidden" role="status" aria-live="assertive">
       <div class="ai-modal">
         <span class="spinner big"></span>
-        <h3>AI is reading your song…</h3>
-        <p id="aiOverlayText">Waiting for response. Your lyrics will not change automatically.</p>
+        <h3>AI is reading your song...</h3>
+        <p id="aiOverlayText">Your lyrics will not change automatically.</p>
       </div>
     </div>
 
