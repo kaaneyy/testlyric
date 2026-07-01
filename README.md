@@ -18,13 +18,14 @@ Then open `http://localhost:3000`.
 
 ## What works now
 
+- One-screen 16:9-oriented studio shell: the page itself stays locked to the viewport, with tools available through the burger menu and compact editor controls.
 - Modern two-column writing UI with a lyric editor, inspector, pill-mode controls, dark mode, focus mode, and learn mode.
 - Local song intelligence: section detection, line stats, syllable estimates, rhymes, wordplay ideas, cliché warnings, filler warnings, repeated image tracking, and structure summaries.
-- Line-aware actions: click or highlight text and every tool uses that exact selection or line instead of blindly using the last line.
+- Line-aware actions: click or highlight text and line-specific tools use that exact selection or line instead of blindly using the last line.
+- Whole-song AI actions: structure review, full-song review, initial audit, and chorus generation send the full song text plus compressed song memory to the AI.
+- Auto song analysis: maps pasted lyrics into Verse / Pre-Chorus / Chorus / Verse 2 / Bridge / Final Chorus sections and leaves missing sections blank for the writer to fill.
 - Safer AI workflow: every request includes a guardrail telling AI not to change words without asking, then TestLyric shows a visual review before any edit can be applied.
 - Structured AI review: the lyric proposal stays in the diff panel, while detailed reasoning/critique appears in a separate side explanation panel so analysis text is not accidentally inserted as lyrics.
-- Whole-song review context: general tasks such as structure analysis, full-song review, initial audit, and chorus generation send the full song text plus compressed song memory to the AI instead of only the selected line.
-- Initial song tests: run an audit after pasting/uploading lyrics to find missing sections, empty spots, filler, cliches, obvious mistakes, and one-click review/fix actions.
 - Waiting indicator: the top bar and centered modal clearly show when TestLyric is waiting for an AI response.
 - Review choices: replace the selection, insert the suggestion below while keeping the original, copy the suggestion, or keep the original untouched.
 - Provider support: Local fallback, OpenAI, Claude, and DeepSeek browser requests using session-only keys.

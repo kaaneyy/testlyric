@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <aside id="menu" class="menu" aria-label="Songwriting tools">
+    <aside id="menu" class="menu hidden" aria-label="Songwriting tools">
       <div class="menu-header">
         <div>
           <p class="eyebrow">TestLyric</p>
@@ -48,7 +48,7 @@
         <button data-action="show-structure">Structure map</button>
         <button data-ai="analyze_structure">AI structure review</button>
         <button data-ai="full_review">AI full-song review</button>
-        <button data-ai="initial_audit">Run initial song tests</button>
+        <button data-ai="initial_audit">Auto song analysis</button>
         <button data-action="show-memory">Song memory</button>
         <button data-action="show-versions">Versions</button>
         <button data-action="restore-version">Restore latest version</button>
@@ -89,7 +89,7 @@
             <button data-ai="wordplay">Wordplay</button>
             <button data-ai="double_meanings">Double meanings</button>
             <button data-ai="generate_chorus">Generate chorus</button>
-            <button data-ai="initial_audit">Initial tests</button>
+            <button data-ai="initial_audit">Auto map song</button>
           </div>
           <textarea id="editor" spellcheck="true" placeholder="Verse 1&#10;I kept your shadow in the hallway light&#10;&#10;Chorus&#10;I say I'm fine but I still look twice..." aria-label="Lyrics editor"></textarea>
         </div>

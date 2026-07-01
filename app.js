@@ -191,8 +191,9 @@ function runLocalTool(tool) {
 }
 
 async function runAiTool(task) {
-  const original = getTargetText();
-  if (!original && task !== "generate_chorus" && task !== "analyze_structure") {
+  const wholeSongTask = ["analyze_structure", "generate_chorus", "full_review", "initial_audit"].includes(task);
+  const original = wholeSongTask ? currentSong.text : getTargetText();
+  if (!original && !wholeSongTask) {
     showTextPanel("Select or click a line before using this tool.");
     return;
   }
@@ -211,7 +212,7 @@ async function runAiTool(task) {
   } finally {
     setAiWaiting(false);
   }
-  createProposal(task, original, response);
+  createProposal(task, original, response, wholeSongTask);
   setSaveState("AI suggestion ready");
 }
 
@@ -224,7 +225,7 @@ function buildAiPrompt(task, target) {
 async function requestAi(prompt, task) {
   const provider = el("providerSelect").value;
   const model = el("modelInput").value.trim();
-  if (provider === "local") return localFallback(task, getTargetText());
+  if (provider === "local") return localFallback(task, ["analyze_structure", "generate_chorus", "full_review", "initial_audit"].includes(task) ? currentSong.text : getTargetText());
   const key = sessionApiKeys[provider];
   if (!key) throw new Error(`Missing ${provider} API key. Choose Local mock or enter a session-only key.`);
 
@@ -234,7 +235,7 @@ async function requestAi(prompt, task) {
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
       body: JSON.stringify({ model: model || "claude-3-5-haiku-latest", max_tokens: 300, messages: [{ role: "user", content: prompt }] })
     });
-    return parseClaudeResponse(response);
+    return parseClaudeResponse(response, ["analyze_structure", "generate_chorus", "full_review", "initial_audit"].includes(task) ? currentSong.text : getTargetText());
   }
 
   const baseUrl = provider === "deepseek" ? "https://api.deepseek.com" : "https://api.openai.com/v1";
@@ -243,27 +244,27 @@ async function requestAi(prompt, task) {
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
     body: JSON.stringify({ model: model || (provider === "deepseek" ? "deepseek-v4-flash" : "gpt-4o-mini"), messages: [{ role: "system", content: AI_GUARDRAIL }, { role: "user", content: prompt }], temperature: 0.7 })
   });
-  return parseOpenAiResponse(response);
+  return parseOpenAiResponse(response, ["analyze_structure", "generate_chorus", "full_review", "initial_audit"].includes(task) ? currentSong.text : getTargetText());
 }
 
-async function parseOpenAiResponse(response) {
+async function parseOpenAiResponse(response, original) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || "AI request failed.");
-  return parseAiPayload(data.choices?.[0]?.message?.content?.trim() || "{}");
+  return parseAiPayload(data.choices?.[0]?.message?.content?.trim() || "{}", original);
 }
 
-async function parseClaudeResponse(response) {
+async function parseClaudeResponse(response, original) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || "Claude request failed.");
-  return parseAiPayload(data.content?.map((part) => part.text).join("\n").trim() || "{}");
+  return parseAiPayload(data.content?.map((part) => part.text).join("\n").trim() || "{}", original);
 }
 
-function parseAiPayload(raw) {
+function parseAiPayload(raw, original = getTargetText()) {
   const cleaned = String(raw).replace(/^```json|```$/g, "").trim();
   try {
-    return normalizeAiResult(JSON.parse(cleaned), getTargetText());
+    return normalizeAiResult(JSON.parse(cleaned), original);
   } catch {
-    return makeAiResult(getTargetText(), true, cleaned, "Kept lyric; AI returned explanation text instead of structured JSON.");
+    return makeAiResult(original, true, cleaned, "Kept lyric; AI returned explanation text instead of structured JSON.");
   }
 }
 
@@ -291,11 +292,11 @@ function localFallback(task, original) {
   if (task === "generate_chorus") return makeAiResult("Chorus\nI say I'm fine but the room knows better\nYour name still pulls like a thread in my sweater", false, "Uses the whole song context to generate a compact hook with repeatable emotional language and a tactile image.", "Generated chorus proposal.");
   if (task === "analyze_structure") return makeAiResult(original, true, `Structure review from full song:\n${formatStructure()}`, "Kept lyric; provided structure review.", [{ label: "Review structure map", type: "review", text: formatStructure() }]);
   if (task === "full_review") return makeAiResult(original, true, `Full-song review:\n${currentSong.memory.summary}\nObvious checks: confirm chorus appears, vary repeated images, trim filler, and make the strongest hook phrase repeat intentionally.`, "Kept lyric; provided full-song feedback.", [{ label: "Show song memory", type: "review", text: JSON.stringify(currentSong.memory, null, 2) }]);
-  if (task === "initial_audit") return makeAiResult(original, true, `Initial test results:\n- Sections found: ${currentSong.sections.length || 0}.\n- Lines found: ${currentSong.memory.lineCount || 0}.\n- Clichés: ${currentSong.memory.clichesFound.join(", ") || "none"}.\n- Filler: ${currentSong.memory.fillerFound.join(", ") || "none"}.\n- Empty/missing spots: ${currentSong.sections.some((section) => section.lines.filter((line) => line.trim()).length < 2) ? "one or more sections look underfilled" : "none obvious"}.`, "Initial audit complete.", [{ label: "Generate chorus idea", type: "insert", text: "Chorus\nI say I'm fine but the room knows better" }, { label: "Review structure", type: "review", text: formatStructure() }]);
+  if (task === "initial_audit") return makeAiResult(ensureSongSections(currentSong.text), false, `Initial test results:\n- Sections found: ${currentSong.sections.length || 0}.\n- Lines found: ${currentSong.memory.lineCount || 0}.\n- Clichés: ${currentSong.memory.clichesFound.join(", ") || "none"}.\n- Filler: ${currentSong.memory.fillerFound.join(", ") || "none"}.\n- Empty/missing spots: ${currentSong.sections.some((section) => section.lines.filter((line) => line.trim()).length < 2) ? "one or more sections look underfilled" : "none obvious"}.`, "Initial audit complete. Proposed a full-song section map with blank missing sections.", [{ label: "Review structure", type: "review", text: formatStructure() }, { label: "Use mapped sections", type: "replace", text: ensureSongSections(currentSong.text) }]);
   return makeAiResult(`${original}\nAlternative direction: sharpen the image and keep an ending rhyme near ${rhymes || ending}.`, false, "Provides an optional direction without overwriting the original. Review before inserting or replacing.", "Suggested a sharper direction.");
 }
 
-function createProposal(task, original, response) {
+function createProposal(task, original, response, wholeSongRange = false) {
   const parsed = normalizeAiResult(response, original);
   pendingProposal = {
     task,
@@ -305,7 +306,7 @@ function createProposal(task, original, response) {
     changeSummary: parsed.changeSummary,
     keepOriginal: parsed.keepOriginal,
     suggestedActions: parsed.suggestedActions || [],
-    range: { ...selectedRange }
+    range: wholeSongRange ? { start: 0, end: el("editor").value.length, lineStart: 0, lineEnd: el("editor").value.length, lineIndex: 0 } : { ...selectedRange }
   };
   showReview();
 }
@@ -329,6 +330,8 @@ function runSuggestedAction(action) {
   if (!action) return;
   if (action.type === "insert") {
     createProposal("suggested action", getTargetText(), makeAiResult(action.text || "", false, "One-click action generated from the initial audit.", action.label || "Suggested action"));
+  } else if (action.type === "replace") {
+    createProposal("suggested action", currentSong.text, makeAiResult(action.text || currentSong.text, false, "One-click action generated from the initial audit.", action.label || "Suggested action"), true);
   } else {
     showTextPanel(action.text || action.label || "No action details.");
   }
@@ -375,6 +378,24 @@ function runAction(action) {
   if (action === "restore-version") return restoreLatestVersion();
   if (action === "export") return exportLyrics();
   if (action === "import") return importLyrics();
+}
+
+function ensureSongSections(text) {
+  const detected = detectSections(text);
+  const byType = detected.reduce((map, section) => {
+    if (!map[section.type]) map[section.type] = section.text.trim();
+    return map;
+  }, {});
+  const verseText = byType.verse || text.split("\n").filter((line) => line.trim() && !/^(intro|verse|pre[- ]?chorus|chorus|hook|bridge|outro)/i.test(line.trim())).slice(0, 4).join("\n");
+  const template = [
+    ["Verse 1", verseText],
+    ["Pre-Chorus", byType.pre_chorus || ""],
+    ["Chorus", byType.chorus || byType.hook || ""],
+    ["Verse 2", ""],
+    ["Bridge", byType.bridge || ""],
+    ["Final Chorus", byType.chorus || byType.hook || ""]
+  ];
+  return template.map(([heading, body]) => `${heading}\n${body}`.trimEnd()).join("\n\n");
 }
 
 function formatStructure() {
