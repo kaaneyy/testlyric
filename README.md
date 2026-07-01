@@ -22,6 +22,9 @@ Then open `http://localhost:3000`.
 - Local song intelligence: section detection, line stats, syllable estimates, rhymes, wordplay ideas, cliché warnings, filler warnings, repeated image tracking, and structure summaries.
 - Line-aware actions: click or highlight text and every tool uses that exact selection or line instead of blindly using the last line.
 - Safer AI workflow: every request includes a guardrail telling AI not to change words without asking, then TestLyric shows a visual review before any edit can be applied.
+- Structured AI review: the lyric proposal stays in the diff panel, while detailed reasoning/critique appears in a separate side explanation panel so analysis text is not accidentally inserted as lyrics.
+- Whole-song review context: general tasks such as structure analysis and chorus generation send the full song text plus compressed song memory to the AI instead of only the selected line.
+- Waiting indicator: the top bar shows when TestLyric is waiting for an AI response.
 - Review choices: replace the selection, insert the suggestion below while keeping the original, copy the suggestion, or keep the original untouched.
 - Provider support: Local fallback, OpenAI, Claude, and DeepSeek browser requests using session-only keys.
 - Privacy: API keys are stored only in JavaScript memory for the current tab. They are not saved to IndexedDB, localStorage, exports, or version history.

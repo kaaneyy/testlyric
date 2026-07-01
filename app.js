@@ -198,27 +198,32 @@ async function runAiTool(task) {
   const approved = confirm("Before this AI request, TestLyric will instruct the AI: do not change any words without asking. Suggestions will appear in review for your approval. Continue?");
   if (!approved) return;
 
+  setAiWaiting(true);
   setSaveState("Asking AI…");
   const prompt = buildAiPrompt(task, original);
-  let suggestion;
+  let response;
   try {
-    suggestion = await requestAi(prompt);
+    response = await requestAi(prompt, task);
   } catch (error) {
-    suggestion = localFallback(task, original);
+    response = localFallback(task, original);
     showTextPanel(`AI provider was unavailable, so TestLyric used local fallback suggestions.\n\n${error.message}`);
+  } finally {
+    setAiWaiting(false);
   }
-  createProposal(task, original, suggestion);
+  createProposal(task, original, response);
   setSaveState("AI suggestion ready");
 }
 
 function buildAiPrompt(task, target) {
-  return `${AI_GUARDRAIL}\n\nTask: ${task}\nSong title: ${currentSong.title}\nGenre: ${el("genreInput").value || "unspecified"}\nMood: ${el("moodInput").value || "unspecified"}\nTheme: ${el("themeInput").value || "unspecified"}\nSong memory: ${JSON.stringify(currentSong.memory)}\nSelected lyric: ${target || "none"}\n\nReturn one concise suggestion only. Do not say you changed the original; this is only a proposal.`;
+  const isWholeSongTask = ["analyze_structure", "generate_chorus"].includes(task);
+  const context = isWholeSongTask ? currentSong.text : target;
+  return `${AI_GUARDRAIL}\n\nTask: ${task}\nSong title: ${currentSong.title}\nGenre: ${el("genreInput").value || "unspecified"}\nMood: ${el("moodInput").value || "unspecified"}\nTheme: ${el("themeInput").value || "unspecified"}\nSong memory: ${JSON.stringify(currentSong.memory)}\nContext type: ${isWholeSongTask ? "whole_song" : "selected_lyric"}\nContext:\n${context || "none"}\n\nReturn strict JSON only with these keys:\n{\n  "updatedLyric": "the replacement lyric text, or the exact original lyric if no lyric change is recommended",\n  "keepOriginal": true or false,\n  "explanation": "detailed explanation, reasoning, double meaning, structure critique, or coaching notes",\n  "changeSummary": "short summary of what changed or why no change is needed"\n}\nDo not put explanations in updatedLyric. If the task is analysis or double meanings and no replacement lyric is needed, keep updatedLyric identical to the selected lyric and put all analysis in explanation.`;
 }
 
-async function requestAi(prompt) {
+async function requestAi(prompt, task) {
   const provider = el("providerSelect").value;
   const model = el("modelInput").value.trim();
-  if (provider === "local") return localFallback("improve_line", getTargetText());
+  if (provider === "local") return localFallback(task, getTargetText());
   const key = sessionApiKeys[provider];
   if (!key) throw new Error(`Missing ${provider} API key. Choose Local mock or enter a session-only key.`);
 
@@ -243,31 +248,58 @@ async function requestAi(prompt) {
 async function parseOpenAiResponse(response) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || "AI request failed.");
-  return data.choices?.[0]?.message?.content?.trim() || "No suggestion returned.";
+  return parseAiPayload(data.choices?.[0]?.message?.content?.trim() || "{}");
 }
 
 async function parseClaudeResponse(response) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || "Claude request failed.");
-  return data.content?.map((part) => part.text).join("\n").trim() || "No suggestion returned.";
+  return parseAiPayload(data.content?.map((part) => part.text).join("\n").trim() || "{}");
+}
+
+function parseAiPayload(raw) {
+  const cleaned = String(raw).replace(/^```json|```$/g, "").trim();
+  try {
+    return normalizeAiResult(JSON.parse(cleaned), getTargetText());
+  } catch {
+    return makeAiResult(getTargetText(), true, cleaned, "Kept lyric; AI returned explanation text instead of structured JSON.");
+  }
+}
+
+function normalizeAiResult(value, original) {
+  if (typeof value === "string") return makeAiResult(original, true, value, "Kept lyric; explanation only.");
+  return makeAiResult(
+    value.updatedLyric || original,
+    Boolean(value.keepOriginal),
+    value.explanation || "Review the proposal before applying it.",
+    value.changeSummary || (value.keepOriginal ? "Kept original lyric." : "Proposed an updated lyric.")
+  );
+}
+
+function makeAiResult(updatedLyric, keepOriginal, explanation, changeSummary) {
+  return { updatedLyric, keepOriginal, explanation, changeSummary };
 }
 
 function localFallback(task, original) {
   const ending = lastWord(original);
   const rhymes = findRhymes(ending).slice(0, 3).join(" / ");
-  if (task === "next_lines") return `${original}\nMaybe I only miss the version I designed`;
-  if (task === "wordplay") return findWordplay(original).join(" · ") || `Turn "${ending}" into a double meaning.`;
-  if (task === "double_meanings") return `${original} (surface: the scene; hidden: the relationship pattern)`;
-  if (task === "generate_chorus") return "Chorus\nI say I'm fine but the room knows better\nYour name still pulls like a thread in my sweater";
-  if (task === "analyze_structure") return formatStructure();
-  return `${original}\nAlternative direction: sharpen the image and keep an ending rhyme near ${rhymes || ending}.`;
+  if (task === "next_lines") return makeAiResult(`${original}\nMaybe I only miss the version I designed`, false, `Adds a follow-up line that keeps the emotional subject while opening a new rhyme path. Ending options: ${rhymes || ending}.`, "Added a possible next line.");
+  if (task === "wordplay") return makeAiResult(original, true, findWordplay(original).join(" · ") || `Try turning "${ending}" into a second meaning or phrase flip.`, "Kept lyric; provided wordplay notes.");
+  if (task === "double_meanings") return makeAiResult(original, true, `Surface reading: the line says what happens literally. Hidden reading: key words like "${ending || "the ending"}" can also point to emotional status, power, ownership, or movement. Keep the lyric if you like the ambiguity; only rewrite if you want the double meaning to be more obvious.`, "Kept lyric; explained double meaning.");
+  if (task === "generate_chorus") return makeAiResult("Chorus\nI say I'm fine but the room knows better\nYour name still pulls like a thread in my sweater", false, "Uses the whole song context to generate a compact hook with repeatable emotional language and a tactile image.", "Generated chorus proposal.");
+  if (task === "analyze_structure") return makeAiResult(original, true, formatStructure(), "Kept lyric; provided structure review.");
+  return makeAiResult(`${original}\nAlternative direction: sharpen the image and keep an ending rhyme near ${rhymes || ending}.`, false, "Provides an optional direction without overwriting the original. Review before inserting or replacing.", "Suggested a sharper direction.");
 }
 
-function createProposal(task, original, suggestion) {
+function createProposal(task, original, response) {
+  const parsed = normalizeAiResult(response, original);
   pendingProposal = {
     task,
     original,
-    suggestion: cleanSuggestion(suggestion),
+    suggestion: cleanSuggestion(parsed.updatedLyric),
+    explanation: parsed.explanation,
+    changeSummary: parsed.changeSummary,
+    keepOriginal: parsed.keepOriginal,
     range: { ...selectedRange }
   };
   showReview();
@@ -275,8 +307,9 @@ function createProposal(task, original, suggestion) {
 
 function showReview() {
   el("aiReview").classList.remove("hidden");
-  el("reviewPrompt").textContent = `Task: ${pendingProposal.task}. Nothing changes unless you choose Replace or Insert. The original lyric is preserved by default.`;
+  el("reviewPrompt").textContent = `Task: ${pendingProposal.task}. ${pendingProposal.changeSummary} Nothing changes unless you choose Replace or Insert.`;
   el("diffView").innerHTML = renderDiff(pendingProposal.original, pendingProposal.suggestion);
+  el("explanationView").textContent = pendingProposal.explanation || "No explanation returned.";
   el("aiReview").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
@@ -439,6 +472,7 @@ function cleanSuggestion(text) { return String(text).replace(/^```[a-z]*|```$/g,
 function escapeHtml(value) { return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]); }
 function showTextPanel(text) { el("details").textContent = text; }
 function setSaveState(text) { el("saveState").textContent = text; }
+function setAiWaiting(waiting) { el("aiStatus").classList.toggle("hidden", !waiting); }
 function el(id) { return document.getElementById(id); }
 
 function openDb() {

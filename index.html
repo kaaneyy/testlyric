@@ -65,6 +65,7 @@
       <header class="topbar">
         <button id="openMenu" class="icon-btn" aria-label="Open menu">☰</button>
         <input id="title" value="Untitled Song" aria-label="Song title" />
+        <span id="aiStatus" class="ai-status hidden"><span class="spinner"></span> Waiting for AI…</span>
         <span id="saveState" class="save-state">Saved locally</span>
         <button id="saveBtn">Save</button>
       </header>
@@ -112,7 +113,16 @@
           <button id="dismissBtn" class="icon-btn" aria-label="Dismiss suggestion">×</button>
         </div>
         <p id="reviewPrompt" class="privacy-note"></p>
-        <div id="diffView" class="diff"></div>
+        <div class="review-grid">
+          <div>
+            <h4>Lyric decision</h4>
+            <div id="diffView" class="diff"></div>
+          </div>
+          <aside class="explanation-card">
+            <h4>Why this helps</h4>
+            <div id="explanationView" class="details"></div>
+          </aside>
+        </div>
         <div class="review-actions">
           <button id="replaceBtn">Replace selection</button>
           <button id="insertBtn">Insert below + keep original</button>
