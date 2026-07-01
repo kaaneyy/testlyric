@@ -121,3 +121,39 @@ body.focus .workspace { grid-template-columns: 1fr; }
 .explanation-card { border: 1px solid var(--border); border-radius: 16px; padding: 1rem; background: color-mix(in srgb, var(--surface-solid), transparent 12%); }
 .explanation-card h4, .review-grid h4 { margin: 0 0 0.6rem; }
 @media (max-width: 900px) { .review-grid { grid-template-columns: 1fr; } }
+
+.ai-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 17, 31, 0.48);
+  backdrop-filter: blur(7px);
+}
+.ai-overlay.hidden { display: none; }
+.ai-modal {
+  width: min(92vw, 420px);
+  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--surface-solid);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  padding: 1.4rem;
+}
+.spinner.big { width: 2.2rem; height: 2.2rem; display: inline-block; margin-bottom: 0.6rem; }
+.action-list { display: grid; gap: 0.5rem; margin-top: 0.9rem; }
+.action-list button { text-align: left; border-radius: 14px; }
+@media (min-width: 1200px) {
+  .app { padding: 0.7rem 1rem; }
+  .topbar { margin-bottom: 0.55rem; }
+  .tips { margin-bottom: 0.6rem; padding: 0.6rem 0.8rem; }
+  #editor { min-height: 48vh; }
+  .menu-card { margin: 0.55rem 0; padding: 0.75rem; }
+  .review { max-height: 38vh; overflow: auto; }
+}
+@media (max-height: 820px) and (min-width: 900px) {
+  #editor { min-height: 42vh; }
+  .review { max-height: 40vh; overflow: auto; }
+  .menu-card { margin: 0.45rem 0; }
+}

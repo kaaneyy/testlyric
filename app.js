@@ -55,6 +55,7 @@ function bindUi() {
   el("learnModeBtn").addEventListener("click", toggleLearnMode);
   el("providerSelect").addEventListener("change", syncProviderDefaults);
   el("clearKeysBtn").addEventListener("click", clearKeys);
+  ["genreInput", "moodInput", "themeInput"].forEach((id) => el(id).addEventListener("input", () => queueSave("settings edit")));
   ["openai", "claude", "deepseek"].forEach((provider) => {
     el(`${provider}Key`).addEventListener("input", (event) => {
       sessionApiKeys[provider] = event.target.value;
@@ -215,9 +216,9 @@ async function runAiTool(task) {
 }
 
 function buildAiPrompt(task, target) {
-  const isWholeSongTask = ["analyze_structure", "generate_chorus"].includes(task);
+  const isWholeSongTask = ["analyze_structure", "generate_chorus", "full_review", "initial_audit"].includes(task);
   const context = isWholeSongTask ? currentSong.text : target;
-  return `${AI_GUARDRAIL}\n\nTask: ${task}\nSong title: ${currentSong.title}\nGenre: ${el("genreInput").value || "unspecified"}\nMood: ${el("moodInput").value || "unspecified"}\nTheme: ${el("themeInput").value || "unspecified"}\nSong memory: ${JSON.stringify(currentSong.memory)}\nContext type: ${isWholeSongTask ? "whole_song" : "selected_lyric"}\nContext:\n${context || "none"}\n\nReturn strict JSON only with these keys:\n{\n  "updatedLyric": "the replacement lyric text, or the exact original lyric if no lyric change is recommended",\n  "keepOriginal": true or false,\n  "explanation": "detailed explanation, reasoning, double meaning, structure critique, or coaching notes",\n  "changeSummary": "short summary of what changed or why no change is needed"\n}\nDo not put explanations in updatedLyric. If the task is analysis or double meanings and no replacement lyric is needed, keep updatedLyric identical to the selected lyric and put all analysis in explanation.`;
+  return `${AI_GUARDRAIL}\n\nTask: ${task}\nSong title: ${currentSong.title}\nGenre: ${el("genreInput").value || "unspecified"}\nMood: ${el("moodInput").value || "unspecified"}\nTheme: ${el("themeInput").value || "unspecified"}\nSong memory: ${JSON.stringify(currentSong.memory)}\nContext type: ${isWholeSongTask ? "whole_song" : "selected_lyric"}\nContext:\n${context || "none"}\n\nReturn strict JSON only with these keys:\n{\n  "updatedLyric": "the replacement lyric text, or the exact original lyric if no lyric change is recommended",\n  "keepOriginal": true or false,\n  "explanation": "detailed explanation, reasoning, double meaning, structure critique, or coaching notes",\n  "changeSummary": "short summary of what changed or why no change is needed",\n  "suggestedActions": [{ "label": "short button label", "type": "replace|insert|review", "text": "optional lyric or review note" }]\n}\nDo not put explanations in updatedLyric. If the task is analysis, full_review, initial_audit, or double meanings and no replacement lyric is needed, keep updatedLyric identical to the selected lyric and put all analysis in explanation. For initial_audit, inspect the full song for empty sections, weak lines, grammar issues, repeated filler, missing chorus/hook, and return suggestedActions for one-click review/fix ideas.`;
 }
 
 async function requestAi(prompt, task) {
@@ -272,12 +273,13 @@ function normalizeAiResult(value, original) {
     value.updatedLyric || original,
     Boolean(value.keepOriginal),
     value.explanation || "Review the proposal before applying it.",
-    value.changeSummary || (value.keepOriginal ? "Kept original lyric." : "Proposed an updated lyric.")
+    value.changeSummary || (value.keepOriginal ? "Kept original lyric." : "Proposed an updated lyric."),
+    Array.isArray(value.suggestedActions) ? value.suggestedActions : []
   );
 }
 
-function makeAiResult(updatedLyric, keepOriginal, explanation, changeSummary) {
-  return { updatedLyric, keepOriginal, explanation, changeSummary };
+function makeAiResult(updatedLyric, keepOriginal, explanation, changeSummary, suggestedActions = []) {
+  return { updatedLyric, keepOriginal, explanation, changeSummary, suggestedActions };
 }
 
 function localFallback(task, original) {
@@ -287,7 +289,9 @@ function localFallback(task, original) {
   if (task === "wordplay") return makeAiResult(original, true, findWordplay(original).join(" · ") || `Try turning "${ending}" into a second meaning or phrase flip.`, "Kept lyric; provided wordplay notes.");
   if (task === "double_meanings") return makeAiResult(original, true, `Surface reading: the line says what happens literally. Hidden reading: key words like "${ending || "the ending"}" can also point to emotional status, power, ownership, or movement. Keep the lyric if you like the ambiguity; only rewrite if you want the double meaning to be more obvious.`, "Kept lyric; explained double meaning.");
   if (task === "generate_chorus") return makeAiResult("Chorus\nI say I'm fine but the room knows better\nYour name still pulls like a thread in my sweater", false, "Uses the whole song context to generate a compact hook with repeatable emotional language and a tactile image.", "Generated chorus proposal.");
-  if (task === "analyze_structure") return makeAiResult(original, true, formatStructure(), "Kept lyric; provided structure review.");
+  if (task === "analyze_structure") return makeAiResult(original, true, `Structure review from full song:\n${formatStructure()}`, "Kept lyric; provided structure review.", [{ label: "Review structure map", type: "review", text: formatStructure() }]);
+  if (task === "full_review") return makeAiResult(original, true, `Full-song review:\n${currentSong.memory.summary}\nObvious checks: confirm chorus appears, vary repeated images, trim filler, and make the strongest hook phrase repeat intentionally.`, "Kept lyric; provided full-song feedback.", [{ label: "Show song memory", type: "review", text: JSON.stringify(currentSong.memory, null, 2) }]);
+  if (task === "initial_audit") return makeAiResult(original, true, `Initial test results:\n- Sections found: ${currentSong.sections.length || 0}.\n- Lines found: ${currentSong.memory.lineCount || 0}.\n- Clichés: ${currentSong.memory.clichesFound.join(", ") || "none"}.\n- Filler: ${currentSong.memory.fillerFound.join(", ") || "none"}.\n- Empty/missing spots: ${currentSong.sections.some((section) => section.lines.filter((line) => line.trim()).length < 2) ? "one or more sections look underfilled" : "none obvious"}.`, "Initial audit complete.", [{ label: "Generate chorus idea", type: "insert", text: "Chorus\nI say I'm fine but the room knows better" }, { label: "Review structure", type: "review", text: formatStructure() }]);
   return makeAiResult(`${original}\nAlternative direction: sharpen the image and keep an ending rhyme near ${rhymes || ending}.`, false, "Provides an optional direction without overwriting the original. Review before inserting or replacing.", "Suggested a sharper direction.");
 }
 
@@ -300,6 +304,7 @@ function createProposal(task, original, response) {
     explanation: parsed.explanation,
     changeSummary: parsed.changeSummary,
     keepOriginal: parsed.keepOriginal,
+    suggestedActions: parsed.suggestedActions || [],
     range: { ...selectedRange }
   };
   showReview();
@@ -310,7 +315,23 @@ function showReview() {
   el("reviewPrompt").textContent = `Task: ${pendingProposal.task}. ${pendingProposal.changeSummary} Nothing changes unless you choose Replace or Insert.`;
   el("diffView").innerHTML = renderDiff(pendingProposal.original, pendingProposal.suggestion);
   el("explanationView").textContent = pendingProposal.explanation || "No explanation returned.";
+  renderSuggestedActions();
   el("aiReview").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function renderSuggestedActions() {
+  const actions = pendingProposal?.suggestedActions || [];
+  el("actionView").innerHTML = actions.map((action, index) => `<button data-action-index="${index}">${escapeHtml(action.label || "Review action")}</button>`).join("");
+  el("actionView").querySelectorAll("button").forEach((button) => button.addEventListener("click", () => runSuggestedAction(actions[Number(button.dataset.actionIndex)])));
+}
+
+function runSuggestedAction(action) {
+  if (!action) return;
+  if (action.type === "insert") {
+    createProposal("suggested action", getTargetText(), makeAiResult(action.text || "", false, "One-click action generated from the initial audit.", action.label || "Suggested action"));
+  } else {
+    showTextPanel(action.text || action.label || "No action details.");
+  }
 }
 
 function renderDiff(original, suggestion) {
@@ -472,7 +493,7 @@ function cleanSuggestion(text) { return String(text).replace(/^```[a-z]*|```$/g,
 function escapeHtml(value) { return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]); }
 function showTextPanel(text) { el("details").textContent = text; }
 function setSaveState(text) { el("saveState").textContent = text; }
-function setAiWaiting(waiting) { el("aiStatus").classList.toggle("hidden", !waiting); }
+function setAiWaiting(waiting) { el("aiStatus").classList.toggle("hidden", !waiting); el("aiOverlay").classList.toggle("hidden", !waiting); }
 function el(id) { return document.getElementById(id); }
 
 function openDb() {

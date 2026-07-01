@@ -46,6 +46,9 @@
       <section class="menu-card">
         <h3>Song controls</h3>
         <button data-action="show-structure">Structure map</button>
+        <button data-ai="analyze_structure">AI structure review</button>
+        <button data-ai="full_review">AI full-song review</button>
+        <button data-ai="initial_audit">Run initial song tests</button>
         <button data-action="show-memory">Song memory</button>
         <button data-action="show-versions">Versions</button>
         <button data-action="restore-version">Restore latest version</button>
@@ -86,6 +89,7 @@
             <button data-ai="wordplay">Wordplay</button>
             <button data-ai="double_meanings">Double meanings</button>
             <button data-ai="generate_chorus">Generate chorus</button>
+            <button data-ai="initial_audit">Initial tests</button>
           </div>
           <textarea id="editor" spellcheck="true" placeholder="Verse 1&#10;I kept your shadow in the hallway light&#10;&#10;Chorus&#10;I say I'm fine but I still look twice..." aria-label="Lyrics editor"></textarea>
         </div>
@@ -121,6 +125,7 @@
           <aside class="explanation-card">
             <h4>Why this helps</h4>
             <div id="explanationView" class="details"></div>
+            <div id="actionView" class="action-list"></div>
           </aside>
         </div>
         <div class="review-actions">
@@ -131,6 +136,14 @@
         </div>
       </section>
     </main>
+
+    <div id="aiOverlay" class="ai-overlay hidden" role="status" aria-live="assertive">
+      <div class="ai-modal">
+        <span class="spinner big"></span>
+        <h3>AI is reading your song…</h3>
+        <p id="aiOverlayText">Waiting for response. Your lyrics will not change automatically.</p>
+      </div>
+    </div>
 
     <script src="app.js"></script>
   </body>
