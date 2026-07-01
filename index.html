@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TestLyric Studio</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <aside id="menu" class="menu" aria-label="Songwriting tools">
+      <div class="menu-header">
+        <div>
+          <p class="eyebrow">TestLyric</p>
+          <h2>Writing Studio</h2>
+        </div>
+        <button id="closeMenu" class="icon-btn" aria-label="Close menu">×</button>
+      </div>
+
+      <section class="menu-card">
+        <h3>Modes</h3>
+        <div class="pill-row">
+          <button class="pill" id="darkModeBtn" aria-pressed="false">🌙 Dark</button>
+          <button class="pill" id="focusModeBtn" aria-pressed="false">Focus</button>
+          <button class="pill" id="learnModeBtn" aria-pressed="true">Learn</button>
+        </div>
+      </section>
+
+      <section class="menu-card">
+        <h3>AI provider</h3>
+        <label>Provider
+          <select id="providerSelect">
+            <option value="local">Local mock / no key</option>
+            <option value="openai">OpenAI</option>
+            <option value="claude">Claude</option>
+            <option value="deepseek">DeepSeek</option>
+          </select>
+        </label>
+        <label>Model <input id="modelInput" value="gpt-4o-mini" autocomplete="off" /></label>
+        <label>OpenAI key <input id="openaiKey" type="password" placeholder="sk-..." autocomplete="off" /></label>
+        <label>Claude key <input id="claudeKey" type="password" placeholder="sk-ant-..." autocomplete="off" /></label>
+        <label>DeepSeek key <input id="deepseekKey" type="password" placeholder="ds-..." autocomplete="off" /></label>
+        <p class="privacy-note">Keys stay only in this tab’s memory. TestLyric never saves keys to IndexedDB, localStorage, or exports.</p>
+        <button id="clearKeysBtn">Clear keys from memory</button>
+      </section>
+
+      <section class="menu-card">
+        <h3>Song controls</h3>
+        <button data-action="show-structure">Structure map</button>
+        <button data-action="show-memory">Song memory</button>
+        <button data-action="show-versions">Versions</button>
+        <button data-action="restore-version">Restore latest version</button>
+        <button data-action="export">Export .txt</button>
+        <button data-action="import">Import lyrics</button>
+      </section>
+
+      <section class="menu-card">
+        <h3>Song settings</h3>
+        <label>Genre <input id="genreInput" placeholder="pop rap, country, r&b" /></label>
+        <label>Mood <input id="moodInput" placeholder="melancholic, clever" /></label>
+        <label>Theme <input id="themeInput" placeholder="pretending to be fine" /></label>
+      </section>
+    </aside>
+
+    <main class="app">
+      <header class="topbar">
+        <button id="openMenu" class="icon-btn" aria-label="Open menu">☰</button>
+        <input id="title" value="Untitled Song" aria-label="Song title" />
+        <span id="saveState" class="save-state">Saved locally</span>
+        <button id="saveBtn">Save</button>
+      </header>
+
+      <section id="tips" class="tips">
+        <strong>Start fast:</strong> write lyrics, click any line, then use local tools or AI tools. AI never edits your lyric directly; every change goes through the review panel.
+      </section>
+
+      <section class="workspace">
+        <div class="editor-shell">
+          <div class="editor-toolbar" aria-label="Writing tools">
+            <button data-local="rhymes">Rhymes</button>
+            <button data-local="syllables">Syllables</button>
+            <button data-local="cliches">Clichés</button>
+            <button data-local="structure">Structure</button>
+            <button data-ai="improve_line">Improve selected</button>
+            <button data-ai="next_lines">Next lines</button>
+            <button data-ai="wordplay">Wordplay</button>
+            <button data-ai="double_meanings">Double meanings</button>
+            <button data-ai="generate_chorus">Generate chorus</button>
+          </div>
+          <textarea id="editor" spellcheck="true" placeholder="Verse 1&#10;I kept your shadow in the hallway light&#10;&#10;Chorus&#10;I say I'm fine but I still look twice..." aria-label="Lyrics editor"></textarea>
+        </div>
+
+        <aside class="inspector" aria-live="polite">
+          <div class="panel">
+            <p class="eyebrow">Selected line</p>
+            <p id="selectedLine" class="selected-line">Click a line to start.</p>
+            <div id="lineStats" class="stats"></div>
+          </div>
+          <div class="panel">
+            <p class="eyebrow">Suggestions</p>
+            <div id="suggestionStrip" class="strip"></div>
+            <div id="details" class="details"></div>
+          </div>
+        </aside>
+      </section>
+
+      <section id="aiReview" class="review hidden" aria-live="polite">
+        <div class="review-heading">
+          <div>
+            <p class="eyebrow">AI Review</p>
+            <h3>Approve every word before it changes</h3>
+          </div>
+          <button id="dismissBtn" class="icon-btn" aria-label="Dismiss suggestion">×</button>
+        </div>
+        <p id="reviewPrompt" class="privacy-note"></p>
+        <div id="diffView" class="diff"></div>
+        <div class="review-actions">
+          <button id="replaceBtn">Replace selection</button>
+          <button id="insertBtn">Insert below + keep original</button>
+          <button id="copyBtn">Copy suggestion</button>
+          <button id="keepBtn">Keep original</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
