@@ -69,10 +69,27 @@ function bindUi() {
     if (event.target === el("detailsModal")) closeDetails();
   });
   el("copyDetailsBtn").addEventListener("click", copyDetails);
+
+  el("openLargeViewBtn").addEventListener("click", openLargeView);
+  el("closeLargeView").addEventListener("click", closeLargeView);
+  el("largeViewModal").addEventListener("click", (event) => {
+    if (event.target === el("largeViewModal")) closeLargeView();
+  });
+  el("copyLargeViewBtn").addEventListener("click", copyLargeView);
+
+  el("openAnalysisCardsBtn").addEventListener("click", openAnalysisCards);
+  el("closeAnalysisCards").addEventListener("click", closeAnalysisCards);
+  el("analysisCardsModal").addEventListener("click", (event) => {
+    if (event.target === el("analysisCardsModal")) closeAnalysisCards();
+  });
+  el("copyAnalysisCardsBtn").addEventListener("click", copyAnalysisCards);
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closeSettings();
       closeDetails();
+      closeLargeView();
+      closeAnalysisCards();
     }
   });
 
@@ -121,7 +138,8 @@ function createSong() {
     memory: {},
     versions: [],
     needsInitialAnalysis: false,
-    analysisCompletedAt: ""
+    analysisCompletedAt: "",
+    lastAnalysisCards: []
   };
 }
 
@@ -168,6 +186,7 @@ function refreshAnalysis() {
   currentSong.sections = detectSections(currentSong.text);
   currentSong.memory = buildMemory(currentSong.text, currentSong.sections);
   renderSuggestions(currentSong.memory);
+  renderSongInfo();
 }
 
 function detectSections(text) {
@@ -212,6 +231,23 @@ function buildMemory(text, sections) {
     rhymePalette: [...new Set(endings.map((word) => word.slice(-3)))].slice(0, 10),
     summary: `${sections.length || 1} section(s), ${endings.length} lyric line(s), recurring words: ${repeated.slice(0, 4).join(", ") || "none yet"}.`
   };
+}
+
+function renderSongInfo() {
+  const memory = currentSong.memory || {};
+  const warningCount = countAnalysisWarnings(memory);
+  const status = currentSong.needsInitialAnalysis ? "Analyze" : (currentSong.analysisCompletedAt ? "Done" : "Ready");
+  const note = currentSong.needsInitialAnalysis
+    ? "Click Initial analysis before editing."
+    : currentSong.analysisCompletedAt
+      ? `Analyzed ${new Date(currentSong.analysisCompletedAt).toLocaleString()}. Cards are ready.`
+      : (memory.lineCount ? "Song information updates as you write." : "Paste a song to begin.");
+
+  setText("infoLines", memory.lineCount || 0);
+  setText("infoSections", memory.sectionCount || 0);
+  setText("infoWarnings", warningCount);
+  setText("infoStatus", status);
+  setText("songInfoNote", note);
 }
 
 function renderSuggestions(memory) {
@@ -267,14 +303,19 @@ async function runAiTool(task) {
     response = await requestAi(prompt, task);
   } catch (error) {
     response = localFallback(task, original);
-    showTextPanel(`AI provider was unavailable, so TestLyric used local fallback suggestions.\n\n${error.message}`);
+    const fallbackMessage = `AI provider was unavailable, so TestLyric used local fallback suggestions.\n\n${error.message}`;
+    if (task === "initial_audit") setDetailsText(fallbackMessage);
+    else showTextPanel(fallbackMessage);
   } finally {
     setAiWaiting(false, task);
   }
 
   const reviewOriginal = replaceWholeSong ? currentSong.text : (getTargetText() || original);
   createProposal(task, reviewOriginal, response, replaceWholeSong);
-  if (task === "initial_audit") setInitialAnalysisComplete();
+  if (task === "initial_audit") {
+    setInitialAnalysisComplete(response.explanation);
+    openAnalysisCards();
+  }
   setSaveState(task === "initial_audit" ? "Initial analysis ready" : "AI suggestion ready");
 }
 
@@ -369,7 +410,7 @@ function localFallback(task, original) {
   if (task === "generate_chorus") return makeAiResult("Chorus\nI say I'm fine but the room knows better\nYour name still pulls like a thread in my sweater", false, "Uses the whole song context to generate a compact hook with repeatable emotional language and a tactile image.", "Generated chorus proposal.");
   if (task === "analyze_structure") return makeAiResult(original, true, `Structure review from full song:\n${formatStructure()}`, "Kept lyric; provided structure review.", [{ label: "Open map", type: "review", text: formatStructure() }]);
   if (task === "full_review") return makeAiResult(original, true, `Full-song review:\n${currentSong.memory.summary}\nConfirm the chorus appears, vary repeated images, trim filler, and make the strongest hook phrase repeat intentionally.`, "Kept lyric; provided full-song feedback.", [{ label: "Song memory", type: "review", text: JSON.stringify(currentSong.memory, null, 2) }]);
-  if (task === "initial_audit") return makeAiResult(ensureSongSections(currentSong.text), false, buildInitialAnalysis(currentSong.text), "Initial analysis complete. Review the map and editing priorities.", [{ label: "Structure map", type: "review", text: formatStructure() }, { label: "Song memory", type: "review", text: JSON.stringify(currentSong.memory, null, 2) }, { label: "Use mapped sections", type: "replace", text: ensureSongSections(currentSong.text) }]);
+  if (task === "initial_audit") return makeAiResult(ensureSongSections(currentSong.text), false, buildInitialAnalysis(currentSong.text), "Initial analysis complete. Review the map and editing priorities.", [{ label: "Card view", type: "cards", text: "" }, { label: "Structure map", type: "review", text: formatStructure() }, { label: "Song memory", type: "review", text: JSON.stringify(currentSong.memory, null, 2) }, { label: "Use mapped sections", type: "replace", text: ensureSongSections(currentSong.text) }]);
   return makeAiResult(`${original}\nAlternative direction: sharpen the image and keep an ending rhyme near ${rhymes || ending}.`, false, "Provides an optional direction without overwriting the original.", "Suggested a sharper direction.");
 }
 
@@ -379,11 +420,11 @@ function buildInitialAnalysis(text) {
   const hasChorus = sections.some((section) => ["chorus", "hook", "final_chorus"].includes(section.type));
   const hasVerse = sections.some((section) => section.type === "verse");
   const underfilled = sections.filter((section) => section.lines.filter((line) => line.trim()).length < 2).map((section) => section.heading || section.type);
-  const strongCandidate = text.split("\n").map((line) => line.trim()).filter((line) => line && !/^(intro|verse|pre[- ]?chorus|chorus|hook|bridge|outro|final chorus)/i.test(line)).sort((a, b) => b.length - a.length)[0] || "Add one memorable hook line.";
+  const strongCandidate = findLikelyHookCandidate(text);
   const warnings = [...memory.clichesFound, ...memory.fillerFound.map((word) => `filler: ${word}`)];
   return [
     "Initial song analysis",
-    `Structure: ${formatStructure()}`,
+    `Structure: ${formatStructureFromSections(sections)}`,
     `Lines: ${memory.lineCount}. Sections: ${memory.sectionCount}.`,
     `Likely hook candidate: ${strongCandidate}`,
     `Missing essentials: ${[!hasVerse && "verse", !hasChorus && "chorus/hook"].filter(Boolean).join(", ") || "none obvious"}`,
@@ -396,6 +437,114 @@ function buildInitialAnalysis(text) {
     "2. Fill any thin sections so every part has a job.",
     "3. Tighten repeated or filler words after the story is clear."
   ].join("\n");
+}
+
+function buildInitialAnalysisCards(text, aiNotes = "") {
+  const sections = detectSections(text);
+  const memory = buildMemory(text, sections);
+  const hasChorus = sections.some((section) => ["chorus", "hook", "final_chorus"].includes(section.type));
+  const hasVerse = sections.some((section) => section.type === "verse");
+  const underfilled = sections.filter((section) => section.lines.filter((line) => line.trim()).length < 2).map((section) => section.heading || section.type);
+  const warnings = [...memory.clichesFound, ...memory.fillerFound.map((word) => `filler: ${word}`)];
+  const lyricLines = text.split("\n").map((line) => line.trim()).filter((line) => line && !isSectionHeading(line));
+  const syllables = lyricLines.map(estimateSyllables);
+  const spread = syllables.length ? `${Math.min(...syllables)}-${Math.max(...syllables)} syllables` : "not enough lyric lines";
+  const hook = findLikelyHookCandidate(text);
+  const missing = [!hasVerse && "verse", !hasChorus && "chorus/hook"].filter(Boolean);
+
+  const cards = [
+    {
+      kind: "structure",
+      title: "Structure",
+      found: `${memory.sectionCount || 0} section(s) detected.\n${formatStructureFromSections(sections)}`,
+      suggested: missing.length
+        ? `Add or label: ${missing.join(", ")}. ${underfilled.length ? `Then fill thin sections: ${underfilled.join(", ")}.` : ""}`.trim()
+        : (underfilled.length ? `Fill thin sections: ${underfilled.join(", ")}.` : "Keep this section map and make each part serve one clear job.")
+    },
+    {
+      kind: "hook",
+      title: "Hook",
+      found: hasChorus ? `Hook area found. Strong candidate:\n${hook}` : `No clear chorus or hook heading found. Strong candidate:\n${hook}`,
+      suggested: hasChorus ? "Repeat the strongest hook phrase more intentionally, then make surrounding lines support it." : "Add a Chorus or Hook section before polishing line edits."
+    },
+    {
+      kind: "warnings",
+      title: "Warnings",
+      found: warnings.length ? warnings.join("\n") : "No built-in cliche or filler warnings found.",
+      suggested: warnings.length ? "Replace flagged phrases with specific images, actions, or details from the song's story." : "Keep checking repeated words after the chorus direction is locked."
+    },
+    {
+      kind: "rhyme",
+      title: "Rhyme and Meter",
+      found: `Rhyme palette: ${formatList(memory.rhymePalette, "not enough line endings yet")}\nLine range: ${spread}`,
+      suggested: "Choose one rhyme family for the hook, then loosen verse endings so the chorus feels more memorable."
+    },
+    {
+      kind: "images",
+      title: "Images",
+      found: `Repeated images: ${formatList(memory.repeatedImages, "none yet")}`,
+      suggested: memory.repeatedImages.length ? "Keep the strongest recurring image and swap weaker repeats for new details." : "Add one concrete image that can return in the chorus or final line."
+    },
+    {
+      kind: "priority",
+      title: "Priorities",
+      found: `${memory.lineCount || 0} lyric line(s), ${memory.sectionCount || 0} section(s).`,
+      suggested: "1. Lock the hook.\n2. Fill missing or thin sections.\n3. Tighten filler only after the story is clear."
+    }
+  ];
+
+  if (aiNotes && aiNotes.trim()) {
+    cards.push({
+      kind: "notes",
+      title: "AI Notes",
+      found: "Initial analysis returned editor notes.",
+      suggested: aiNotes.trim()
+    });
+  }
+
+  return cards;
+}
+
+function renderAnalysisCards(cards = currentSong.lastAnalysisCards || []) {
+  const cardList = cards.length ? cards : buildInitialAnalysisCards(currentSong.text);
+  el("analysisCardsGrid").innerHTML = renderAnalysisCardMarkup(cardList);
+}
+
+function renderAnalysisCardMarkup(cards) {
+  return cards.map((card) => `<article class="analysis-card ${escapeAttr(card.kind || "")}">
+    <p class="mini-label">${escapeHtml(card.kind || "Analysis")}</p>
+    <h3>${escapeHtml(card.title || "Card")}</h3>
+    <div class="card-columns">
+      <div class="card-block"><span class="card-tag">Found</span><p class="card-copy">${escapeHtml(card.found || "-")}</p></div>
+      <div class="card-block"><span class="card-tag">Suggested</span><p class="card-copy">${escapeHtml(card.suggested || "-")}</p></div>
+    </div>
+  </article>`).join("");
+}
+
+function openAnalysisCards() {
+  if (!currentSong.lastAnalysisCards?.length) {
+    currentSong.lastAnalysisCards = buildInitialAnalysisCards(currentSong.text);
+  }
+  renderAnalysisCards(currentSong.lastAnalysisCards);
+  el("analysisCardsModal").classList.remove("hidden");
+}
+
+function closeAnalysisCards() {
+  el("analysisCardsModal").classList.add("hidden");
+}
+
+async function copyAnalysisCards() {
+  const text = formatAnalysisCardsText(currentSong.lastAnalysisCards?.length ? currentSong.lastAnalysisCards : buildInitialAnalysisCards(currentSong.text));
+  try {
+    await navigator.clipboard.writeText(text);
+    setSaveState("Analysis cards copied");
+  } catch {
+    showTextPanel(text);
+  }
+}
+
+function formatAnalysisCardsText(cards) {
+  return cards.map((card) => `${card.title}\nFound:\n${card.found}\nSuggested:\n${card.suggested}`).join("\n\n");
 }
 
 function sharpenLine(text) {
@@ -442,7 +591,9 @@ function renderSuggestedActions() {
 
 function runSuggestedAction(action) {
   if (!action) return;
-  if (action.type === "insert") {
+  if (action.type === "cards") {
+    openAnalysisCards();
+  } else if (action.type === "insert") {
     createProposal("suggested action", getTargetText(), makeAiResult(action.text || "", false, "One-click action generated from the audit.", action.label || "Suggested action"));
   } else if (action.type === "replace") {
     createProposal("suggested action", currentSong.text, makeAiResult(action.text || currentSong.text, false, "One-click action generated from the audit.", action.label || "Suggested action"), true);
@@ -506,7 +657,7 @@ function ensureSongSections(text) {
     if (!map[section.type]) map[section.type] = section.text.trim();
     return map;
   }, {});
-  const verseText = byType.verse || text.split("\n").filter((line) => line.trim() && !/^(intro|verse|pre[- ]?chorus|chorus|hook|bridge|outro|final chorus)/i.test(line.trim())).slice(0, 4).join("\n");
+  const verseText = byType.verse || text.split("\n").filter((line) => line.trim() && !isSectionHeading(line.trim())).slice(0, 4).join("\n");
   const template = [
     ["Verse 1", verseText],
     ["Pre-Chorus", byType.pre_chorus || ""],
@@ -519,7 +670,11 @@ function ensureSongSections(text) {
 }
 
 function formatStructure() {
-  return currentSong.sections.map((section, index) => `${index + 1}. ${section.heading || section.type}: ${section.lines.filter((line) => line.trim()).length} lines`).join("\n") || "No sections detected yet.";
+  return formatStructureFromSections(currentSong.sections);
+}
+
+function formatStructureFromSections(sections) {
+  return sections.map((section, index) => `${index + 1}. ${section.heading || section.type}: ${section.lines.filter((line) => line.trim()).length} lines`).join("\n") || "No sections detected yet.";
 }
 
 function formatVersions() {
@@ -583,21 +738,30 @@ function saveVersion(reason) {
 }
 
 function markInitialAnalysisNeeded(message = "Run initial analysis before editing this song.") {
+  currentSong.text = el("editor").value;
   if (!currentSong.text.trim()) return clearInitialAnalysisPrompt();
   currentSong.needsInitialAnalysis = true;
   currentSong.analysisCompletedAt = "";
+  currentSong.lastAnalysisCards = [];
   renderInitialAnalysisState(message);
+  renderSongInfo();
 }
 
 function clearInitialAnalysisPrompt() {
   currentSong.needsInitialAnalysis = false;
+  currentSong.analysisCompletedAt = "";
+  currentSong.lastAnalysisCards = [];
   renderInitialAnalysisState();
+  renderSongInfo();
 }
 
-function setInitialAnalysisComplete() {
+function setInitialAnalysisComplete(analysisText = "") {
   currentSong.needsInitialAnalysis = false;
   currentSong.analysisCompletedAt = new Date().toISOString();
+  currentSong.lastAnalysisCards = buildInitialAnalysisCards(currentSong.text, analysisText || pendingProposal?.explanation || "");
+  renderAnalysisCards(currentSong.lastAnalysisCards);
   renderInitialAnalysisState();
+  renderSongInfo();
   queueSave("initial analysis complete");
 }
 
@@ -692,6 +856,52 @@ async function copyDetails() {
   }
 }
 
+function openLargeView() {
+  renderLargeView();
+  el("largeViewModal").classList.remove("hidden");
+}
+
+function closeLargeView() {
+  el("largeViewModal").classList.add("hidden");
+}
+
+function renderLargeView() {
+  const title = el("largeViewTitle");
+  const body = el("largeViewBody");
+
+  if (pendingProposal) {
+    title.textContent = "Large AI version";
+    body.innerHTML = `<div class="large-review">${renderDiff(pendingProposal.original, pendingProposal.suggestion)}<aside class="explanation-card"><p class="mini-label">Why</p><div class="details-copy">${escapeHtml(pendingProposal.explanation || "No explanation returned.")}</div></aside></div>`;
+    return;
+  }
+
+  if (currentSong.lastAnalysisCards?.length) {
+    title.textContent = "Initial analysis";
+    body.innerHTML = `<div class="analysis-card-grid">${renderAnalysisCardMarkup(currentSong.lastAnalysisCards)}</div>`;
+    return;
+  }
+
+  title.textContent = "Song reader";
+  body.innerHTML = `<pre class="large-pre">${escapeHtml(lastDetailsText || buildInitialAnalysis(currentSong.text))}</pre>`;
+}
+
+async function copyLargeView() {
+  try {
+    await navigator.clipboard.writeText(getLargeViewText());
+    setSaveState("Large view copied");
+  } catch {
+    showTextPanel(getLargeViewText());
+  }
+}
+
+function getLargeViewText() {
+  if (pendingProposal) {
+    return `Original:\n${pendingProposal.original}\n\nAI version:\n${pendingProposal.suggestion}\n\nWhy:\n${pendingProposal.explanation || ""}`;
+  }
+  if (currentSong.lastAnalysisCards?.length) return formatAnalysisCardsText(currentSong.lastAnalysisCards);
+  return lastDetailsText || buildInitialAnalysis(currentSong.text);
+}
+
 function findRhymes(word) {
   if (!word) return [];
   const key = word.toLowerCase();
@@ -724,6 +934,25 @@ function lastWord(text) {
   return (text.toLowerCase().match(/[a-z']+/g) || []).at(-1) || "";
 }
 
+function isSectionHeading(line) {
+  return /^(intro|verse|pre[- ]?chorus|chorus|hook|bridge|outro|final chorus)(\s+\d+)?$/i.test(String(line || "").trim());
+}
+
+function findLikelyHookCandidate(text) {
+  return text.split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !isSectionHeading(line))
+    .sort((a, b) => b.length - a.length)[0] || "Add one memorable hook line.";
+}
+
+function formatList(items, fallback) {
+  return items && items.length ? items.join(", ") : fallback;
+}
+
+function countAnalysisWarnings(memory) {
+  return (memory.clichesFound?.length || 0) + (memory.fillerFound?.length || 0);
+}
+
 function cleanSuggestion(text) {
   return String(text).replace(/^```[a-z]*|```$/g, "").trim();
 }
@@ -738,6 +967,11 @@ function escapeAttr(value) {
 
 function setSaveState(text) {
   el("saveState").textContent = text;
+}
+
+function setText(id, value) {
+  const node = el(id);
+  if (node) node.textContent = value;
 }
 
 function setAiWaiting(waiting, task = "") {
@@ -773,12 +1007,15 @@ function loadSong() {
 function hydrate() {
   currentSong.needsInitialAnalysis = Boolean(currentSong.needsInitialAnalysis);
   currentSong.analysisCompletedAt = currentSong.analysisCompletedAt || "";
+  currentSong.lastAnalysisCards = Array.isArray(currentSong.lastAnalysisCards) ? currentSong.lastAnalysisCards : [];
+  currentSong.versions = Array.isArray(currentSong.versions) ? currentSong.versions : [];
   el("title").value = currentSong.title;
   el("editor").value = currentSong.text || DEFAULT_TEXT;
   el("genreInput").value = currentSong.genre || "";
   el("moodInput").value = currentSong.mood || "";
   el("themeInput").value = currentSong.theme || "";
   updateSelection();
+  if (currentSong.lastAnalysisCards.length) renderAnalysisCards(currentSong.lastAnalysisCards);
   if (currentSong.needsInitialAnalysis || (!currentSong.analysisCompletedAt && looksLikeFullSong(el("editor").value))) {
     markInitialAnalysisNeeded("Run initial analysis before editing this song.");
   } else {
