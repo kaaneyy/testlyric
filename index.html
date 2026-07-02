@@ -68,7 +68,7 @@
           <span id="saveState" class="save-state">Saved locally</span>
         </header>
 
-        <textarea id="editor" spellcheck="true" placeholder="Verse 1&#10;I kept your shadow in the hallway light&#10;&#10;Chorus&#10;I say I'm fine but I still look twice..." aria-label="Lyrics editor"></textarea>
+        <textarea id="editor" spellcheck="true" placeholder="Paste a full song here...&#10;&#10;Verse 1&#10;I kept your shadow in the hallway light&#10;&#10;Chorus&#10;I say I'm fine but I still look twice..." aria-label="Lyrics editor"></textarea>
       </section>
 
       <section class="section suggestion-section" aria-live="polite" aria-label="AI suggestions">
@@ -79,6 +79,14 @@
           </div>
           <span id="aiStatus" class="ai-status hidden"><span class="spinner"></span> Thinking</span>
         </header>
+
+        <div id="analysisPrompt" class="analysis-prompt hidden">
+          <div>
+            <p class="mini-label">Start here</p>
+            <strong id="analysisPromptText">Song pasted. Run initial analysis before editing.</strong>
+          </div>
+          <button id="promptAnalysisBtn" class="pill primary-pill">Initial analysis</button>
+        </div>
 
         <div class="line-card">
           <p class="mini-label">Selected line</p>
@@ -132,6 +140,11 @@
           </div>
         </header>
 
+        <div class="button-group analysis-group">
+          <p class="mini-label">First step</p>
+          <button id="initialAnalysisBtn" class="primary-action" data-ai="initial_audit">Initial analysis</button>
+        </div>
+
         <div class="button-group">
           <p class="mini-label">Local</p>
           <div class="button-grid">
@@ -143,14 +156,13 @@
         </div>
 
         <div class="button-group">
-          <p class="mini-label">AI</p>
+          <p class="mini-label">AI edit</p>
           <div class="button-grid">
             <button data-ai="improve_line">Improve</button>
             <button data-ai="next_lines">Next lines</button>
             <button data-ai="wordplay">Wordplay</button>
             <button data-ai="double_meanings">Meanings</button>
             <button data-ai="generate_chorus">Chorus</button>
-            <button data-ai="initial_audit">Audit</button>
             <button data-ai="full_review">Review</button>
             <button data-ai="analyze_structure">Structure</button>
           </div>
@@ -170,7 +182,7 @@
       </aside>
 
       <section id="tips" class="tips" hidden>
-        Click a line, choose a tool, then approve any AI wording before applying it.
+        Paste a song, run Initial analysis, then edit line by line with review approval.
       </section>
     </main>
 
