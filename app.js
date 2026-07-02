@@ -1,5 +1,5 @@
 const DB_NAME = "testlyric_studio_v2";
-const AI_GUARDRAIL = "Do not change, replace, or rewrite any words in the user's lyrics without explicitly asking first. Return suggestions as proposals only. The app will ask the user before applying anything.";
+const AI_GUARDRAIL = "Do not change, replace, or rewrite any words in the user's lyrics without explicitly asking first. Return suggestions as proposals only; the app will ask the user before applying anything. The goal is a better song with the smallest possible adjustments to the raw, human-written lyrics: preserve the writer's voice, wording, and intent, and change only what is necessary.";
 const DEFAULT_TEXT = "Verse 1\nI kept your shadow in the hallway light\nI say I'm fine but I still look twice\n\nChorus\nI keep dancing with the ghost of us\nActing like the quiet doesn't open up";
 const WHOLE_CONTEXT_TASKS = ["analyze_structure", "generate_chorus", "full_review", "initial_audit"];
 const WHOLE_REPLACE_TASKS = ["initial_audit"];
@@ -41,6 +41,7 @@ async function init() {
   currentSong = saved || currentSong;
   hydrate();
   refreshAnalysis();
+  maybePromptForKey();
 }
 
 function bindUi() {
@@ -90,8 +91,21 @@ function bindUi() {
       closeDetails();
       closeLargeView();
       closeAnalysisCards();
+      closeKeyModal();
+      if (!el("suggestionPopout").classList.contains("hidden")) dockSuggestionPanel();
     }
   });
+
+  el("popOutBtn").addEventListener("click", toggleSuggestionPopout);
+
+  el("openKeyModalBtn").addEventListener("click", () => openKeyModal(false));
+  el("closeKeyModal").addEventListener("click", closeKeyModal);
+  el("keyModal").addEventListener("click", (event) => {
+    if (event.target === el("keyModal")) closeKeyModal();
+  });
+  el("keyProviderSelect").addEventListener("change", syncKeyModalDefaults);
+  el("saveKeyBtn").addEventListener("click", saveKeyFromModal);
+  el("skipKeyBtn").addEventListener("click", skipKeyModal);
 
   el("darkModeBtn").addEventListener("click", toggleDarkMode);
   el("focusModeBtn").addEventListener("click", toggleFocusMode);
@@ -323,7 +337,7 @@ function buildAiPrompt(task, target) {
   const contextTask = WHOLE_CONTEXT_TASKS.includes(task);
   const context = contextTask ? currentSong.text : target;
   const auditInstructions = task === "initial_audit" ? "\nFor initial_audit, act as a practical song editor. Analyze the whole song before line editing. In explanation, include: structure map, missing or underfilled sections, likely hook, strongest lines, weakest lines, rhyme/meter notes, cliche/filler warnings, and 3 editing priorities. If a cleaner section map would help, put it in updatedLyric; otherwise keep updatedLyric identical to the original. Suggested actions should be useful song-editing next steps." : "";
-  return `${AI_GUARDRAIL}\n\nTask: ${task}\nSong title: ${currentSong.title}\nGenre: ${el("genreInput").value || "unspecified"}\nMood: ${el("moodInput").value || "unspecified"}\nTheme: ${el("themeInput").value || "unspecified"}\nSong memory: ${JSON.stringify(currentSong.memory)}\nContext type: ${contextTask ? "whole_song" : "selected_lyric"}\nContext:\n${context || "none"}\n\nReturn strict JSON only with these keys:\n{\n  "updatedLyric": "the replacement lyric text, or the exact original lyric if no lyric change is recommended",\n  "keepOriginal": true or false,\n  "explanation": "detailed explanation, reasoning, double meaning, structure critique, or coaching notes",\n  "changeSummary": "short summary of what changed or why no change is needed",\n  "suggestedActions": [{ "label": "short button label", "type": "replace|insert|review", "text": "optional lyric or review note" }]\n}\nDo not put explanations in updatedLyric. If the task is analysis, full_review, initial_audit, or double meanings and no replacement lyric is needed, keep updatedLyric identical to the selected lyric and put all analysis in explanation.${auditInstructions}`;
+  return `${AI_GUARDRAIL}\n\nTask: ${task}\nSong title: ${currentSong.title}\nGenre: ${el("genreInput").value || "unspecified"}\nMood: ${el("moodInput").value || "unspecified"}\nTheme: ${el("themeInput").value || "unspecified"}\nSong memory: ${JSON.stringify(currentSong.memory)}\nContext type: ${contextTask ? "whole_song" : "selected_lyric"}\nContext:\n${context || "none"}\n\nReturn strict JSON only with these keys:\n{\n  "updatedLyric": "the replacement lyric text, or the exact original lyric if no lyric change is recommended",\n  "keepOriginal": true or false,\n  "explanation": "detailed explanation, reasoning, double meaning, structure critique, or coaching notes",\n  "changeSummary": "short summary of what changed or why no change is needed",\n  "suggestedActions": [{ "label": "short button label", "type": "replace|insert|review", "text": "optional lyric or review note" }]\n}\nDo not put explanations in updatedLyric. If the task is analysis, full_review, initial_audit, or double meanings and no replacement lyric is needed, keep updatedLyric identical to the selected lyric and put all analysis in explanation. Always favor the smallest change that improves the song and keep as much of the original human wording as possible.${auditInstructions}`;
 }
 
 async function requestAi(prompt, task) {
@@ -799,6 +813,94 @@ function clearKeys() {
   el("claudeKey").value = "";
   el("deepseekKey").value = "";
   showTextPanel("API keys cleared from this tab memory. They were never saved by TestLyric.");
+}
+
+function hasAnyKey() {
+  return Boolean(sessionApiKeys.openai || sessionApiKeys.claude || sessionApiKeys.deepseek);
+}
+
+function maybePromptForKey() {
+  if (hasAnyKey()) return;
+  openKeyModal(true);
+}
+
+function openKeyModal(fromStart = false) {
+  const provider = el("providerSelect").value;
+  el("keyProviderSelect").value = provider === "local" && fromStart ? "openai" : provider;
+  syncKeyModalDefaults();
+  const activeProvider = el("keyProviderSelect").value;
+  el("keyInput").value = sessionApiKeys[activeProvider] || "";
+  el("skipKeyBtn").textContent = fromStart ? "Use local mock" : "Cancel";
+  el("keyModal").classList.remove("hidden");
+  setTimeout(() => el("keyInput").focus(), 0);
+}
+
+function closeKeyModal() {
+  el("keyModal").classList.add("hidden");
+}
+
+function syncKeyModalDefaults() {
+  const provider = el("keyProviderSelect").value;
+  const defaults = { local: "local", openai: "gpt-4o-mini", claude: "claude-3-5-haiku-latest", deepseek: "deepseek-v4-flash" };
+  el("keyModelInput").value = defaults[provider];
+  el("keyInput").value = provider === "local" ? "" : (sessionApiKeys[provider] || "");
+  el("keyInput").disabled = provider === "local";
+  el("keyInput").placeholder = provider === "local" ? "No key needed for local mock" : "sk-...";
+}
+
+function saveKeyFromModal() {
+  const provider = el("keyProviderSelect").value;
+  const key = el("keyInput").value.trim();
+  const model = el("keyModelInput").value.trim();
+
+  el("providerSelect").value = provider;
+  if (model) el("modelInput").value = model;
+  else syncProviderDefaults();
+
+  if (provider !== "local") {
+    if (!key) {
+      el("keyInput").focus();
+      setSaveState("Enter a key or choose Local mock");
+      return;
+    }
+    sessionApiKeys[provider] = key;
+    el(`${provider}Key`).value = key;
+    setSaveState(`${providerLabel(provider)} key set for this tab`);
+  } else {
+    setSaveState("Using local mock. No key needed.");
+  }
+  closeKeyModal();
+}
+
+function skipKeyModal() {
+  if (el("skipKeyBtn").textContent === "Use local mock") {
+    el("providerSelect").value = "local";
+    syncProviderDefaults();
+    setSaveState("Using local mock. Add a key from Settings anytime.");
+  }
+  closeKeyModal();
+}
+
+function providerLabel(provider) {
+  return { openai: "OpenAI", claude: "Claude", deepseek: "DeepSeek", local: "Local mock" }[provider] || provider;
+}
+
+function toggleSuggestionPopout() {
+  if (el("suggestionPopout").classList.contains("hidden")) popOutSuggestionPanel();
+  else dockSuggestionPanel();
+}
+
+function popOutSuggestionPanel() {
+  el("suggestionPopoutBody").appendChild(el("suggestionSection"));
+  el("suggestionPopout").classList.remove("hidden");
+  el("popOutBtn").textContent = "Dock panel";
+}
+
+function dockSuggestionPanel() {
+  const app = document.querySelector(".app");
+  app.insertBefore(el("suggestionSection"), el("actionSection"));
+  el("suggestionPopout").classList.add("hidden");
+  el("popOutBtn").textContent = "Pop out";
 }
 
 function toggleDarkMode() {
