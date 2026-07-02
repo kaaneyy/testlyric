@@ -2,14 +2,6 @@
 
 A modern, local-first songwriting workbench that runs as a static site and deploys cleanly to Vercel.
 
-## Run locally
-
-```bash
-python3 -m http.server 3000
-```
-
-Then open `http://localhost:3000`.
-
 ## Deploy to Vercel
 
 - Framework preset: **Other**
@@ -19,13 +11,15 @@ Then open `http://localhost:3000`.
 ## What works now
 
 - One-screen 16:9 studio shell with three fixed sections: 50% lyric input, 30% AI suggestion version, and 20% compact tool controls.
-- No page scrolling, panel scrolling, or popup scrolling; detail-heavy views open in fixed popups that stay inside the viewport.
+- The page itself stays fixed, while the lyric editor, action rail, suggestion boxes, settings, and detail boxes can scroll internally.
+- A highlighted **Initial analysis** first-step button for full-song editing.
+- When lyrics are pasted, imported, or restored, TestLyric prompts the writer to click Initial analysis before editing.
+- Initial analysis maps structure, hook strength, weak spots, rhyme palette, filler/cliche warnings, and editing priorities.
 - Small pill-shaped controls across local tools, AI tools, song actions, settings, and review actions.
 - Modern writing UI with dark mode, focus mode, session settings, and compact song metadata controls.
 - Local song intelligence: section detection, line stats, syllable estimates, rhymes, wordplay ideas, cliche warnings, filler warnings, repeated image tracking, and structure summaries.
 - Line-aware actions: click or highlight text and line-specific tools use that exact selection or line instead of blindly using the last line.
-- Whole-song AI actions: structure review, full-song review, initial audit, and chorus generation send the full song text plus compressed song memory to the AI.
-- Auto song analysis: maps pasted lyrics into Verse / Pre-Chorus / Chorus / Verse 2 / Bridge / Final Chorus sections and leaves missing sections blank for the writer to fill.
+- Whole-song AI actions: structure review, full-song review, initial analysis, and chorus generation send the full song text plus compressed song memory to the AI.
 - Safer AI workflow: every request includes a guardrail telling AI not to change words without asking, then TestLyric shows a visual review before any edit can be applied.
 - Structured AI review: the original lyric and AI version appear in the middle panel, with detail notes available through the popup flow.
 - Waiting indicator: the top status and centered modal clearly show when TestLyric is waiting for an AI response.
