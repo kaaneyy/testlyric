@@ -72,12 +72,15 @@
       </section>
 
       <section class="section suggestion-section" aria-live="polite" aria-label="AI suggestions">
-        <header class="section-head">
+        <header class="section-head suggestion-head">
           <div>
             <p class="eyebrow">AI suggestions</p>
             <h2>Version</h2>
           </div>
-          <span id="aiStatus" class="ai-status hidden"><span class="spinner"></span> Thinking</span>
+          <div class="suggestion-actions">
+            <button id="openLargeViewBtn" class="pill view-pill">Large view</button>
+            <span id="aiStatus" class="ai-status hidden"><span class="spinner"></span> Thinking</span>
+          </div>
         </header>
 
         <div id="analysisPrompt" class="analysis-prompt hidden">
@@ -145,6 +148,20 @@
           <button id="initialAnalysisBtn" class="primary-action" data-ai="initial_audit">Initial analysis</button>
         </div>
 
+        <section id="songInfo" class="song-info" aria-label="Song information" aria-live="polite">
+          <div class="song-info-top">
+            <p class="mini-label">Song information</p>
+            <button id="openAnalysisCardsBtn" class="pill">Analysis cards</button>
+          </div>
+          <div class="song-info-grid">
+            <span class="song-info-item"><strong id="infoLines">0</strong><small>Lines</small></span>
+            <span class="song-info-item"><strong id="infoSections">0</strong><small>Sections</small></span>
+            <span class="song-info-item"><strong id="infoWarnings">0</strong><small>Warnings</small></span>
+            <span class="song-info-item"><strong id="infoStatus">Ready</strong><small>Status</small></span>
+          </div>
+          <p id="songInfoNote" class="song-info-note">Paste a song to begin.</p>
+        </section>
+
         <div class="button-group">
           <p class="mini-label">Local</p>
           <div class="button-grid">
@@ -198,6 +215,38 @@
         <pre id="detailsPopupText"></pre>
         <div class="popup-actions">
           <button id="copyDetailsBtn" class="pill">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="largeViewModal" class="large-view-modal hidden" role="dialog" aria-modal="true" aria-label="Large view">
+      <div class="large-view-popover">
+        <header class="popup-head">
+          <div>
+            <p class="eyebrow">Reader</p>
+            <h2 id="largeViewTitle">Large view</h2>
+          </div>
+          <button id="closeLargeView" class="icon-btn" aria-label="Close large view">x</button>
+        </header>
+        <div id="largeViewBody" class="large-view-body"></div>
+        <div class="popup-actions">
+          <button id="copyLargeViewBtn" class="pill">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="analysisCardsModal" class="analysis-cards-modal hidden" role="dialog" aria-modal="true" aria-label="Analysis cards">
+      <div class="analysis-cards-popover">
+        <header class="popup-head">
+          <div>
+            <p class="eyebrow">Initial analysis</p>
+            <h2>Found and suggested</h2>
+          </div>
+          <button id="closeAnalysisCards" class="icon-btn" aria-label="Close analysis cards">x</button>
+        </header>
+        <div id="analysisCardsGrid" class="analysis-card-grid"></div>
+        <div class="popup-actions">
+          <button id="copyAnalysisCardsBtn" class="pill">Copy</button>
         </div>
       </div>
     </div>
