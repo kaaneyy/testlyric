@@ -10,11 +10,14 @@ A modern, local-first songwriting workbench that runs as a static site and deplo
 
 ## What works now
 
-- One-screen 16:9 studio shell with three fixed sections: 50% lyric input, 30% AI suggestion version, and 20% compact tool controls.
-- The page itself stays fixed, while the lyric editor, action rail, suggestion boxes, settings, and detail boxes can scroll internally.
+- One-screen 16:9 studio shell with three fixed sections: 44% lyric input, 40% AI suggestion version, and 16% compact tool controls.
+- The page itself stays fixed, while the lyric editor, action rail, suggestion boxes, settings, detail boxes, and popup readers can scroll internally when needed.
 - A highlighted **Initial analysis** first-step button for full-song editing.
+- Song information appears directly under Initial analysis with live line, section, warning, and analysis status counts.
 - When lyrics are pasted, imported, or restored, TestLyric prompts the writer to click Initial analysis before editing.
 - Initial analysis maps structure, hook strength, weak spots, rhyme palette, filler/cliche warnings, and editing priorities.
+- Initial analysis now opens a card popup that separates what was found from what is suggested.
+- The middle AI panel includes a **Large view** button for reading the current proposal or analysis cards with more screen area.
 - Small pill-shaped controls across local tools, AI tools, song actions, settings, and review actions.
 - Modern writing UI with dark mode, focus mode, session settings, and compact song metadata controls.
 - Local song intelligence: section detection, line stats, syllable estimates, rhymes, wordplay ideas, cliche warnings, filler warnings, repeated image tracking, and structure summaries.
