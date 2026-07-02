@@ -45,7 +45,10 @@
             <label>OpenAI <input id="openaiKey" type="password" placeholder="sk-..." autocomplete="off" /></label>
             <label>Claude <input id="claudeKey" type="password" placeholder="sk-ant-..." autocomplete="off" /></label>
             <label>DeepSeek <input id="deepseekKey" type="password" placeholder="ds-..." autocomplete="off" /></label>
-            <button id="clearKeysBtn" class="pill">Clear keys</button>
+            <div class="pill-row">
+              <button id="openKeyModalBtn" class="pill">AI key setup</button>
+              <button id="clearKeysBtn" class="pill">Clear keys</button>
+            </div>
           </div>
 
           <div class="settings-card">
@@ -71,13 +74,14 @@
         <textarea id="editor" spellcheck="true" placeholder="Paste a full song here...&#10;&#10;Verse 1&#10;I kept your shadow in the hallway light&#10;&#10;Chorus&#10;I say I'm fine but I still look twice..." aria-label="Lyrics editor"></textarea>
       </section>
 
-      <section class="section suggestion-section" aria-live="polite" aria-label="AI suggestions">
+      <section id="suggestionSection" class="section suggestion-section" aria-live="polite" aria-label="AI suggestions">
         <header class="section-head suggestion-head">
           <div>
             <p class="eyebrow">AI suggestions</p>
             <h2>Version</h2>
           </div>
           <div class="suggestion-actions">
+            <button id="popOutBtn" class="pill view-pill">Pop out</button>
             <button id="openLargeViewBtn" class="pill view-pill">Large view</button>
             <span id="aiStatus" class="ai-status hidden"><span class="spinner"></span> Thinking</span>
           </div>
@@ -131,7 +135,7 @@
         </div>
       </section>
 
-      <aside class="section action-section" aria-label="Actions">
+      <aside id="actionSection" class="section action-section" aria-label="Actions">
         <header class="control-head">
           <div>
             <p class="eyebrow">Controls</p>
@@ -247,6 +251,41 @@
         <div id="analysisCardsGrid" class="analysis-card-grid"></div>
         <div class="popup-actions">
           <button id="copyAnalysisCardsBtn" class="pill">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="suggestionPopout" class="suggestion-popout hidden" role="dialog" aria-modal="true" aria-label="AI suggestions popout">
+      <div class="suggestion-popout-shell">
+        <div id="suggestionPopoutBody" class="suggestion-popout-body"></div>
+      </div>
+    </div>
+
+    <div id="keyModal" class="key-modal hidden" role="dialog" aria-modal="true" aria-label="Connect AI">
+      <div class="key-popover">
+        <header class="popup-head">
+          <div>
+            <p class="eyebrow">Welcome to TestLyric</p>
+            <h2>Connect your AI</h2>
+          </div>
+          <button id="closeKeyModal" class="icon-btn" aria-label="Close AI key setup">x</button>
+        </header>
+        <div class="key-body">
+          <p class="key-intro">Paste an API key to unlock AI rewriting, or start with the local mock and add a key later. Keys stay in this browser tab only — never saved to disk, exports, or history.</p>
+          <label>Provider
+            <select id="keyProviderSelect">
+              <option value="local">Local mock / no key</option>
+              <option value="openai">OpenAI</option>
+              <option value="claude">Claude</option>
+              <option value="deepseek">DeepSeek</option>
+            </select>
+          </label>
+          <label>API key <input id="keyInput" type="password" placeholder="sk-..." autocomplete="off" /></label>
+          <label>Model <input id="keyModelInput" placeholder="gpt-4o-mini" autocomplete="off" /></label>
+        </div>
+        <div class="popup-actions">
+          <button id="skipKeyBtn" class="pill">Use local mock</button>
+          <button id="saveKeyBtn" class="primary-pill">Save &amp; start</button>
         </div>
       </div>
     </div>

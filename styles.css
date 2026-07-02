@@ -640,6 +640,8 @@ body.dark .analysis-card {
 .details-modal,
 .large-view-modal,
 .analysis-cards-modal,
+.key-modal,
+.suggestion-popout,
 .ai-overlay {
   position: fixed;
   inset: 0;
@@ -656,6 +658,7 @@ body.dark .analysis-card {
 .details-popover,
 .large-view-popover,
 .analysis-cards-popover,
+.key-popover,
 .ai-modal {
   width: min(52rem, 92vw);
   max-height: min(86vh, 46rem);
@@ -901,6 +904,67 @@ body.dark .analysis-card {
   color: var(--muted);
   font-size: 0.78rem;
   overflow: hidden;
+}
+
+.key-popover {
+  width: min(30rem, 92vw);
+  display: flex;
+  flex-direction: column;
+}
+
+.key-body {
+  display: grid;
+  gap: 0.62rem;
+  padding: 0.85rem;
+}
+
+.key-body label {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 720;
+}
+
+.key-intro {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.key-body input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.suggestion-popout {
+  z-index: 45;
+  padding: 1.15rem;
+}
+
+.key-modal {
+  z-index: 60;
+}
+
+.suggestion-popout-shell {
+  width: min(72rem, 96vw);
+  height: min(48rem, 92vh);
+  display: flex;
+  min-height: 0;
+}
+
+.suggestion-popout-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+.suggestion-popout-body .suggestion-section {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 body.focus .suggestion-section,
