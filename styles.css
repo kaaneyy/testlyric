@@ -37,11 +37,22 @@ body.dark {
 
 * {
   box-sizing: border-box;
-  scrollbar-width: none;
+  scrollbar-color: color-mix(in srgb, var(--primary), transparent 42%) transparent;
+  scrollbar-width: thin;
 }
 
 *::-webkit-scrollbar {
-  display: none;
+  width: 0.46rem;
+  height: 0.46rem;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--primary), transparent 42%);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 html,
@@ -119,9 +130,10 @@ textarea {
   min-height: 0;
   border: 0;
   resize: none;
-  overflow: hidden;
+  overflow: auto;
   background: transparent;
   line-height: 1.5;
+  scrollbar-gutter: stable;
 }
 
 h2,
@@ -155,6 +167,12 @@ p {
 .action-section {
   display: flex;
   flex-direction: column;
+}
+
+.action-section {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 .section-head,
@@ -222,6 +240,33 @@ p {
   flex: 1;
   padding: 0.95rem;
   font-size: 1rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.analysis-prompt {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin: 0.72rem 0.72rem 0;
+  padding: 0.62rem;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 30%);
+  border-radius: 8px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), transparent 88%), color-mix(in srgb, var(--mint), transparent 88%));
+  overflow: hidden;
+}
+
+.analysis-prompt strong {
+  display: block;
+  margin-top: 0.22rem;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.analysis-prompt .pill {
+  flex: 0 0 auto;
 }
 
 .line-card {
@@ -240,11 +285,13 @@ body.dark .line-card {
 
 .selected-line {
   min-height: 2.55rem;
+  max-height: 4.6rem;
   margin-top: 0.36rem;
   font-size: 0.9rem;
   font-weight: 760;
   line-height: 1.35;
-  overflow: hidden;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .stats,
@@ -261,7 +308,7 @@ body.dark .line-card {
 .stats {
   margin-top: 0.45rem;
   max-height: 2.1rem;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .stat,
@@ -288,7 +335,8 @@ body.dark .line-card {
   flex: 0 0 auto;
   max-height: 4.65rem;
   margin: 0.6rem 0.72rem 0;
-  overflow: hidden;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .review {
@@ -317,7 +365,7 @@ body.dark .line-card {
   font-size: 0.74rem;
   line-height: 1.25;
   max-height: 2.05rem;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .diff {
@@ -348,11 +396,12 @@ body.dark .line-card {
 .version-text {
   height: calc(100% - 1.35rem);
   padding: 0.28rem 0.55rem 0.5rem;
-  overflow: hidden;
+  overflow: auto;
   white-space: pre-wrap;
   color: var(--text);
   font-size: 0.78rem;
   line-height: 1.32;
+  scrollbar-gutter: stable;
 }
 
 .version-block.proposal {
@@ -380,7 +429,7 @@ body.dark .explanation-card {
   font-size: 0.74rem;
   line-height: 1.25;
   white-space: pre-wrap;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .action-list {
@@ -389,7 +438,7 @@ body.dark .explanation-card {
   flex-wrap: wrap;
   max-height: 2.05rem;
   margin-top: 0.42rem;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .action-list button,
@@ -408,7 +457,7 @@ body.dark .explanation-card {
   border-radius: 8px;
   color: var(--muted);
   text-align: center;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .empty-review h3 {
@@ -428,7 +477,11 @@ body.dark .explanation-card {
   flex: 0 0 auto;
   min-height: 0;
   padding: 0.62rem 0.62rem 0;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.analysis-group {
+  padding-top: 0.72rem;
 }
 
 .button-grid {
@@ -456,6 +509,35 @@ body.dark .explanation-card {
   color: var(--primary);
   border-color: var(--primary);
   background: rgba(52, 84, 209, 0.1);
+}
+
+.primary-pill,
+.primary-action {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--primary), var(--mint));
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--primary), transparent 70%);
+}
+
+.primary-action {
+  width: 100%;
+  min-height: 2.35rem;
+  margin-top: 0.42rem;
+  font-size: 0.82rem;
+}
+
+.primary-action.needs-attention,
+.primary-pill.needs-attention {
+  animation: attentionPulse 1.35s ease-in-out infinite;
+}
+
+@keyframes attentionPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent), transparent 52%);
+  }
+  50% {
+    box-shadow: 0 0 0 0.42rem color-mix(in srgb, var(--accent), transparent 92%);
+  }
 }
 
 .icon-btn {
@@ -493,17 +575,25 @@ body.dark .explanation-card {
   overflow: hidden;
 }
 
+.settings-popover {
+  display: flex;
+  flex-direction: column;
+}
+
 .popup-head {
+  flex: 0 0 auto;
   padding: 0.78rem;
   border-bottom: 1px solid var(--border);
 }
 
 .settings-grid {
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.62rem;
   padding: 0.78rem;
-  overflow: hidden;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .settings-card {
@@ -540,12 +630,13 @@ body.dark .explanation-card {
   min-height: 0;
   margin: 0;
   padding: 0.85rem;
-  overflow: hidden;
+  overflow: auto;
   white-space: pre-wrap;
   color: var(--text);
   font-family: inherit;
   font-size: 0.86rem;
   line-height: 1.36;
+  scrollbar-gutter: stable;
 }
 
 .popup-actions {
@@ -635,6 +726,7 @@ body.focus .app {
     padding: 0.56rem 0.62rem;
   }
 
+  .analysis-prompt,
   .line-card {
     margin: 0.55rem 0.55rem 0;
     padding: 0.55rem;
