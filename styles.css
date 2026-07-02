@@ -146,7 +146,7 @@ p {
   width: 100vw;
   height: 100dvh;
   display: grid;
-  grid-template-columns: 50fr 30fr 20fr;
+  grid-template-columns: 44fr 40fr 16fr;
   gap: 0.65rem;
   padding: 0.65rem;
   overflow: hidden;
@@ -190,6 +190,19 @@ p {
   flex: 0 0 auto;
   padding: 0.72rem 0.78rem;
   border-bottom: 1px solid var(--border);
+}
+
+.suggestion-head {
+  align-items: flex-start;
+}
+
+.suggestion-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  max-width: 50%;
 }
 
 .eyebrow,
@@ -279,7 +292,10 @@ p {
   overflow: hidden;
 }
 
-body.dark .line-card {
+body.dark .line-card,
+body.dark .song-info,
+body.dark .explanation-card,
+body.dark .analysis-card {
   background: rgba(255, 255, 255, 0.04);
 }
 
@@ -343,7 +359,7 @@ body.dark .line-card {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) minmax(5.4rem, 0.42fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) minmax(5.6rem, 0.4fr) auto;
   gap: 0.5rem;
   margin: 0.6rem 0.72rem 0.72rem;
   overflow: hidden;
@@ -418,10 +434,6 @@ body.dark .line-card {
   overflow: hidden;
 }
 
-body.dark .explanation-card {
-  background: rgba(255, 255, 255, 0.04);
-}
-
 .details-copy {
   max-height: 2.45rem;
   margin-top: 0.25rem;
@@ -484,6 +496,75 @@ body.dark .explanation-card {
   padding-top: 0.72rem;
 }
 
+.song-info {
+  flex: 0 0 auto;
+  margin: 0.52rem 0.62rem 0;
+  padding: 0.58rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  overflow: hidden;
+}
+
+.song-info-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.song-info-top .pill {
+  min-height: 1.64rem;
+  padding-inline: 0.5rem;
+  font-size: 0.68rem;
+}
+
+.song-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.34rem;
+  margin-top: 0.45rem;
+}
+
+.song-info-item {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.42rem;
+  background: var(--panel-solid);
+  overflow: hidden;
+}
+
+.song-info-item strong,
+.song-info-item small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-info-item strong {
+  font-size: 0.9rem;
+  line-height: 1.05;
+}
+
+.song-info-item small {
+  margin-top: 0.18rem;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.song-info-note {
+  max-height: 2.65rem;
+  margin-top: 0.42rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.25;
+  overflow: auto;
+}
+
 .button-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -503,6 +584,12 @@ body.dark .explanation-card {
 
 .pill {
   min-height: 1.9rem;
+}
+
+.view-pill {
+  border-color: color-mix(in srgb, var(--primary), transparent 35%);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary), transparent 92%);
 }
 
 .pill[aria-pressed="true"] {
@@ -551,6 +638,8 @@ body.dark .explanation-card {
 
 .menu,
 .details-modal,
+.large-view-modal,
+.analysis-cards-modal,
 .ai-overlay {
   position: fixed;
   inset: 0;
@@ -565,6 +654,8 @@ body.dark .explanation-card {
 
 .settings-popover,
 .details-popover,
+.large-view-popover,
+.analysis-cards-popover,
 .ai-modal {
   width: min(52rem, 92vw);
   max-height: min(86vh, 46rem);
@@ -575,7 +666,9 @@ body.dark .explanation-card {
   overflow: hidden;
 }
 
-.settings-popover {
+.settings-popover,
+.large-view-popover,
+.analysis-cards-popover {
   display: flex;
   flex-direction: column;
 }
@@ -625,7 +718,18 @@ body.dark .explanation-card {
   flex-direction: column;
 }
 
-#detailsPopupText {
+.large-view-popover {
+  width: min(78rem, 94vw);
+  height: min(43rem, 88vh);
+}
+
+.analysis-cards-popover {
+  width: min(74rem, 94vw);
+  height: min(42rem, 88vh);
+}
+
+#detailsPopupText,
+.large-pre {
   flex: 1;
   min-height: 0;
   margin: 0;
@@ -639,10 +743,103 @@ body.dark .explanation-card {
   scrollbar-gutter: stable;
 }
 
+.large-view-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0.85rem;
+  overflow: hidden;
+}
+
+.large-review {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(7rem, 0.32fr);
+  gap: 0.65rem;
+  overflow: hidden;
+}
+
+.large-review .explanation-card {
+  grid-column: 1 / -1;
+}
+
+.large-review .version-text {
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.large-view-body .analysis-card-grid {
+  height: 100%;
+  padding: 0;
+}
+
+.analysis-card-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(11rem, auto);
+  gap: 0.65rem;
+  padding: 0.85rem;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.analysis-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem;
+  background: rgba(255, 255, 255, 0.58);
+  overflow: hidden;
+}
+
+.analysis-card h3 {
+  margin-top: 0.22rem;
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.card-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.62rem;
+}
+
+.card-block {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.56rem;
+  background: var(--panel-solid);
+  overflow: hidden;
+}
+
+.card-tag {
+  display: block;
+  margin-bottom: 0.28rem;
+  color: var(--mint);
+  font-size: 0.62rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.card-copy {
+  max-height: 8.4rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .popup-actions {
   flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
+  gap: 0.42rem;
   padding: 0 0.78rem 0.78rem;
 }
 
@@ -740,11 +937,30 @@ body.focus .app {
   .review {
     gap: 0.38rem;
     margin: 0.48rem 0.55rem 0.55rem;
-    grid-template-rows: auto minmax(0, 1fr) minmax(4.5rem, 0.36fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) minmax(4.5rem, 0.34fr) auto;
   }
 
   .button-group {
     padding: 0.48rem 0.5rem 0;
+  }
+
+  .song-info {
+    margin: 0.42rem 0.5rem 0;
+    padding: 0.48rem;
+  }
+
+  .song-info-grid {
+    gap: 0.25rem;
+    margin-top: 0.34rem;
+  }
+
+  .song-info-item {
+    padding: 0.34rem;
+  }
+
+  .song-info-note {
+    max-height: 2.1rem;
+    margin-top: 0.32rem;
   }
 
   .button-grid {
@@ -760,10 +976,20 @@ body.focus .app {
 
 @media (max-width: 980px) {
   .app {
-    grid-template-columns: 46fr 34fr 20fr;
+    grid-template-columns: 42fr 40fr 18fr;
   }
 
   button {
     font-size: 0.68rem;
+  }
+
+  .suggestion-actions {
+    max-width: 58%;
+  }
+
+  .analysis-card-grid,
+  .card-columns,
+  .large-review {
+    grid-template-columns: 1fr;
   }
 }
